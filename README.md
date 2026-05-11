@@ -1,6 +1,6 @@
 # prmptr.org
 
-> A minimal editor for sophisticated prompt engineers.
+> A minimal editor for prompt engineering.
 
 Building this — a Tauri + Next.js desktop app that treats
 Claude-style markdown prompts as first-class citizens: XML tags,
