@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>prmptr.org — the IDE for prompt engineering</title>
+    <meta
+      name="description"
+      content="A native desktop editor for prompt engineering, built for the Claude ecosystem. XML-aware WYSIWYG, byte-perfect markdown round-trip. Tauri + Rust, MIT."
+    />
+    <meta property="og:title" content="prmptr.org" />
+    <meta
+      property="og:description"
+      content="The IDE for prompt engineering, built for the Claude ecosystem."
+    />
+    <meta property="og:image" content="/screenshot.png" />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#161514" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23161514'/%3E%3Ccircle cx='22' cy='22' r='4' fill='%23b89aff'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='ui-monospace,monospace' font-weight='600' font-size='16' fill='%23ece9e3'%3Ep%3C/text%3E%3C/svg%3E"
+    />
+    <link
+      rel="preconnect"
+      href="https://fonts.googleapis.com"
+      crossorigin
+    />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a href="/" class="wordmark" aria-label="prmptr.org home">
+        prmptr<span class="dot">.org</span>
+      </a>
+      <nav class="topnav">
+        <a href="https://github.com/syntheticproduct/prmptr.org" class="ghost">
+          GitHub →
+        </a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>
+          The IDE for<br />
+          prompt engineering.
+        </h1>
+        <p class="lede">
+          A native desktop editor, built for the Claude ecosystem.
+          XML-aware WYSIWYG, byte-perfect markdown round-trip,
+          structural awareness coming next.
+        </p>
+        <div class="cta">
+          <a
+            class="btn primary"
+            href="https://github.com/syntheticproduct/prmptr.org/releases/latest"
+          >
+            Download for Windows
+          </a>
+          <a
+            class="btn ghost"
+            href="https://github.com/syntheticproduct/prmptr.org"
+          >
+            View source
+          </a>
+        </div>
+        <p class="micro">
+          MIT licensed · Open source · macOS + Linux builds coming
+        </p>
+      </section>
+
+      <section class="screenshot-frame">
+        <img
+          src="/screenshot.png"
+          alt="prmptr.org editor showing a Claude-style prompt with role, instructions, and example sections — XML tags rendered as violet inline pills"
+          width="1400"
+          height="900"
+        />
+      </section>
+
+      <section class="pitch">
+        <div class="why">
+          <h2>Why</h2>
+          <p>
+            The tooling for writing long, structured LLM prompts is bad.
+            You either live in a textarea and squint at raw markdown, or
+            use a general-purpose editor that doesn't know prompts have
+            headings, XML tags, and structure that matters.
+          </p>
+          <p>
+            <strong>prmptr</strong> is what an editor built specifically
+            for prompts looks like.
+          </p>
+        </div>
+
+        <div class="features">
+          <article>
+            <h3>XML tags, first-class</h3>
+            <p>
+              <code>&lt;system&gt;</code>, <code>&lt;examples&gt;</code>,
+              <code>&lt;instructions&gt;</code> render as inline pills —
+              not raw text and not stripped. Visual structure, preserved
+              source.
+            </p>
+          </article>
+          <article>
+            <h3>Byte-perfect round-trip</h3>
+            <p>
+              Open a prompt, edit one paragraph, save — nothing else
+              moves. No list-marker normalization, no table padding
+              shifts. Diffs stay clean.
+            </p>
+          </article>
+          <article>
+            <h3>Native desktop</h3>
+            <p>
+              ~5 MB binary built in Rust + Tauri. Real file picker, real
+              filesystem, real OS clipboard. Not another tab in your
+              browser.
+            </p>
+          </article>
+          <article>
+            <h3>Built for Claude</h3>
+            <p>
+              Designed around Anthropic's prompting best practices: clear
+              role, structured instructions, XML-tagged examples. The
+              affordances follow the doctrine.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="install">
+        <h2>Get it</h2>
+        <p>
+          Download the latest installer or the bare executable from
+          <a href="https://github.com/syntheticproduct/prmptr.org/releases/latest">
+            GitHub Releases
+          </a>.
+          The installer adds prmptr to "Open with…" for <code>.md</code>
+          files. The bare <code>.exe</code> is a portable single-file
+          download — double-click to run.
+        </p>
+        <p>
+          Building from source:
+        </p>
+        <pre><code>git clone https://github.com/syntheticproduct/prmptr.org
+cd prmptr.org
+npm install
+npm run tauri dev</code></pre>
+      </section>
+    </main>
+
+    <footer>
+      <span>
+        Built by
+        <a href="https://github.com/syntheticproduct">Camille Lambert</a>
+        · 2026 · MIT
+      </span>
+      <span>
+        <a href="https://github.com/syntheticproduct/prmptr.org">Source</a>
+        ·
+        <a href="https://github.com/syntheticproduct/prmptr.org/issues">Issues</a>
+      </span>
+    </footer>
+  </body>
+</html>

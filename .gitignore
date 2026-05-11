@@ -48,6 +48,7 @@ src-tauri/gen/
 /test-editor.mjs
 /tmp/
 *.png
+!landing/**/*.png
 playwright-report/
 
 # local IDE / agent
