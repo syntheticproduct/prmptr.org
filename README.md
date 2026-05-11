@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# prmptr.org
 
-## Getting Started
+A WYSIWYG markdown editor for prompt engineers. Built with Tauri + Next.js. MIT licensed.
 
-First, run the development server:
+**Status**: early. Working end-to-end (Milkdown editor, native file open/save, drag-drop) but rough.
+
+## Why
+
+The tooling for editing long, structured LLM prompts is bad. You either:
+- Live in a textarea and squint at raw markdown, or
+- Use a general-purpose editor (VS Code, Obsidian) that doesn't know prompts have headings + XML tags + structure that matters.
+
+`prmptr` is what an editor built specifically for prompts looks like. XML tags as first-class citizens, byte-perfect markdown round-trip via remark, structural awareness coming next.
+
+## Run from source
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/syntheticproduct/prmptr.org
+cd prmptr.org
+npm install
+npm run tauri dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Requires Rust ([rustup](https://rustup.rs/)) and on Linux the usual Tauri system deps:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+sudo apt install libwebkit2gtk-4.1-dev libxdo-dev libssl-dev \
+                 libayatana-appindicator3-dev librsvg2-dev pkgconf
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Build
 
-## Learn More
+```bash
+npm run tauri build
+```
 
-To learn more about Next.js, take a look at the following resources:
+Produces an `.exe` (+ NSIS installer) on Windows, `.dmg` on macOS, `.deb`/`.AppImage` on Linux. Cross-compile to Windows from Linux works via the `x86_64-pc-windows-gnu` target + `mingw-w64`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Architecture
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Frontend**: Next.js 16 (App Router, static export, all client components).
+- **Editor**: [Milkdown](https://milkdown.dev) (ProseMirror + remark), with a custom inline-WYSIWYG theme.
+- **Native shell**: [Tauri 2](https://tauri.app) — Rust backend, ~5MB binary.
+- **File I/O**: custom Rust commands (`read_prompt_file` / `write_prompt_file`) with `thiserror`-based error handling, surfacing serializable errors to the React side.
 
-## Deploy on Vercel
+## Roadmap
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [x] WYSIWYG editor (Milkdown)
+- [x] Native file open/save with file picker
+- [x] HTML5 drag-and-drop
+- [x] CLI arg path-passing (`prmptr.exe foo.md` opens that file)
+- [ ] Frontmatter (YAML) round-trip preservation
+- [ ] Claude integration: critique current prompt
+- [ ] Structural side panel: section outline + cross-references
+- [ ] Variable extraction: detect `{var}` placeholders, prompt for values
+- [ ] Code signing + Microsoft Store
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+MIT — see [LICENSE](LICENSE).

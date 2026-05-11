@@ -39,3 +39,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# tauri
+src-tauri/target/
+src-tauri/gen/
+
+# playwright test artifacts
+/test-editor.mjs
+/tmp/
+*.png
+playwright-report/
+
+# local IDE / agent
+.claude/
+CLAUDE.md
+AGENTS.md

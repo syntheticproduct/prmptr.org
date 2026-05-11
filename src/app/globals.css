@@ -1,26 +1,169 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0c0c0e;
+  --surface: #161618;
+  --surface-2: #1c1c20;
+  --border: #26262b;
+  --text: #e6e6e6;
+  --text-dim: #a1a1aa;
+  --text-muted: #6b6b73;
+  --accent: #8b5cf6;
+  --accent-hover: #a78bfa;
+  --warning: #f59e0b;
+  --danger: #ef4444;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--bg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans), Inter, ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: #2a2a30;
+  border-radius: 8px;
+  border: 2px solid var(--bg);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #3a3a42;
+}
+
+/* Milkdown editor content styling.
+   Targets ProseMirror's output classes inside our editor host. */
+.prmptr-editor-host .milkdown {
+  height: 100%;
+}
+body .prmptr-editor-host .ProseMirror {
+  min-height: 100%;
+  padding: 1.5rem 2rem 4rem;
+  outline: none;
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+body .prmptr-editor-host .ProseMirror > * + * {
+  margin-top: 0.75em;
+}
+body .prmptr-editor-host .ProseMirror h1,
+body .prmptr-editor-host .ProseMirror h2,
+body .prmptr-editor-host .ProseMirror h3,
+body .prmptr-editor-host .ProseMirror h4,
+body .prmptr-editor-host .ProseMirror h5,
+body .prmptr-editor-host .ProseMirror h6 {
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text);
+  margin-top: 1.5em;
+}
+body .prmptr-editor-host .ProseMirror h1 { font-size: 1.7rem; }
+body .prmptr-editor-host .ProseMirror h2 { font-size: 1.4rem; }
+body .prmptr-editor-host .ProseMirror h3 { font-size: 1.2rem; }
+body .prmptr-editor-host .ProseMirror h4,
+body .prmptr-editor-host .ProseMirror h5,
+body .prmptr-editor-host .ProseMirror h6 { font-size: 1.05rem; }
+
+body .prmptr-editor-host .ProseMirror p {
+  color: var(--text);
+}
+body .prmptr-editor-host .ProseMirror a {
+  color: var(--accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+body .prmptr-editor-host .ProseMirror strong { font-weight: 600; }
+body .prmptr-editor-host .ProseMirror em { font-style: italic; }
+
+body .prmptr-editor-host .ProseMirror code {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.875em;
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+body .prmptr-editor-host .ProseMirror pre {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+body .prmptr-editor-host .ProseMirror pre code {
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+}
+
+body .prmptr-editor-host .ProseMirror ul,
+body .prmptr-editor-host .ProseMirror ol {
+  padding-left: 1.5em;
+}
+body .prmptr-editor-host .ProseMirror ul { list-style: disc; }
+body .prmptr-editor-host .ProseMirror ol { list-style: decimal; }
+body .prmptr-editor-host .ProseMirror li > p { margin: 0; }
+body .prmptr-editor-host .ProseMirror li + li { margin-top: 0.25em; }
+
+body .prmptr-editor-host .ProseMirror blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1em;
+  color: var(--text-dim);
+}
+
+body .prmptr-editor-host .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+
+body .prmptr-editor-host .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+}
+body .prmptr-editor-host .ProseMirror th,
+body .prmptr-editor-host .ProseMirror td {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.7em;
+  text-align: left;
+}
+body .prmptr-editor-host .ProseMirror th {
+  background: var(--surface);
+  font-weight: 600;
+}
+
+/* Raw HTML / XML tags (Milkdown's `html` node) — render the source-text atom
+   as a faint inline pill so users can see <system>, <examples> etc. */
+body .prmptr-editor-host .ProseMirror span[data-type="html"] {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8em;
+  background: rgba(139, 92, 246, 0.12);
+  color: var(--accent-hover);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+body .prmptr-editor-host .ProseMirror::selection,
+body .prmptr-editor-host .ProseMirror *::selection {
+  background: rgba(139, 92, 246, 0.3);
 }
