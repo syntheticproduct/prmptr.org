@@ -1,24 +1,35 @@
 @import "tailwindcss";
 
+/* Palette per the roadmap design spec.
+   Warm dark base (#161514 brown), violet accent (#b89aff), alpha-based borders.
+   Semantic colors map to the roadmap's section-role bars too: green/blue/violet/orange/rose. */
 :root {
-  --bg: #0c0c0e;
-  --surface: #161618;
-  --surface-2: #1c1c20;
-  --border: #26262b;
-  --text: #e6e6e6;
-  --text-dim: #a1a1aa;
-  --text-muted: #6b6b73;
-  --accent: #8b5cf6;
-  --accent-hover: #a78bfa;
-  --warning: #f59e0b;
-  --danger: #ef4444;
+  --bg: #161514;
+  --surface: #1c1b1a;
+  --surface-2: #232220;
+  --surface-3: #2a2826;
+  --surface-active: #322f2c;
+  --border: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.09);
+  --text: #ece9e3;
+  --text-dim: #b8b3aa;
+  --text-muted: #807a71;
+  --text-faint: #4f4a44;
+  --accent: #b89aff;
+  --accent-hover: #ccb5ff;
+  --accent-tint: rgba(184, 154, 255, 0.14);
+  --accent-tint-strong: rgba(184, 154, 255, 0.28);
+  --warning: #e8a26a;
+  --danger: #d97a8e;
+  --success: #6ecf9f;
+  --info: #6ea3cf;
 }
 
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--text);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
 html {
@@ -41,12 +52,12 @@ body {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: #2a2a30;
+  background: var(--surface-3);
   border-radius: 8px;
   border: 2px solid var(--bg);
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #3a3a42;
+  background: var(--surface-active);
 }
 
 /* Milkdown editor content styling.
@@ -95,7 +106,7 @@ body .prmptr-editor-host .ProseMirror strong { font-weight: 600; }
 body .prmptr-editor-host .ProseMirror em { font-style: italic; }
 
 body .prmptr-editor-host .ProseMirror code {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
   font-size: 0.875em;
   background: var(--surface-2);
   color: var(--text);
@@ -143,7 +154,7 @@ body .prmptr-editor-host .ProseMirror table {
 }
 body .prmptr-editor-host .ProseMirror th,
 body .prmptr-editor-host .ProseMirror td {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   padding: 0.4em 0.7em;
   text-align: left;
 }
@@ -155,9 +166,9 @@ body .prmptr-editor-host .ProseMirror th {
 /* Raw HTML / XML tags (Milkdown's `html` node) — render the source-text atom
    as a faint inline pill so users can see <system>, <examples> etc. */
 body .prmptr-editor-host .ProseMirror span[data-type="html"] {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
   font-size: 0.8em;
-  background: rgba(139, 92, 246, 0.12);
+  background: var(--accent-tint);
   color: var(--accent-hover);
   padding: 0.1em 0.35em;
   border-radius: 4px;
@@ -165,5 +176,5 @@ body .prmptr-editor-host .ProseMirror span[data-type="html"] {
 
 body .prmptr-editor-host .ProseMirror::selection,
 body .prmptr-editor-host .ProseMirror *::selection {
-  background: rgba(139, 92, 246, 0.3);
+  background: var(--accent-tint-strong);
 }
