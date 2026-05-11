@@ -58,3 +58,17 @@ export async function writePromptFile(path: string, content: string): Promise<Fi
 export async function takeInitialPath(): Promise<string | null> {
   return invoke<string | null>("take_initial_path");
 }
+
+export type ClipboardImageResult = {
+  path: string;
+  width: number;
+  height: number;
+  bytesWritten: number;
+};
+
+// Read clipboard image, save as PNG in OS temp, replace clipboard with the
+// file path as text. Returns metadata on success; throws ClipboardError
+// (shape: { kind, message }) on failure including the no-image case.
+export async function clipboardImageToPath(): Promise<ClipboardImageResult> {
+  return invoke<ClipboardImageResult>("clipboard_image_to_path");
+}

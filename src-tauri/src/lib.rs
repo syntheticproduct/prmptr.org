@@ -1,8 +1,10 @@
+mod clipboard;
 mod file;
 
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use clipboard::clipboard_image_to_path;
 use file::{read_prompt_file, write_prompt_file};
 
 /// A one-shot holder for the file path passed on the command line.
@@ -39,6 +41,7 @@ pub fn run() {
             read_prompt_file,
             write_prompt_file,
             take_initial_path,
+            clipboard_image_to_path,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

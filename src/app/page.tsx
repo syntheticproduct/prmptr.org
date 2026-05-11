@@ -10,6 +10,13 @@ import {
   writePromptFile,
 } from "@/lib/tauri-fs";
 import { MilkdownEditor } from "@/components/MilkdownEditor";
+import { ToolsMenu } from "@/components/ToolsMenu";
+
+type ToolStatus =
+  | { kind: "idle" }
+  | { kind: "running" }
+  | { kind: "ok"; message: string }
+  | { kind: "err"; message: string };
 
 function basename(path: string): string {
   return path.split(/[\\/]/).pop() || path;
@@ -64,6 +71,14 @@ export default function Home() {
   const [busy, setBusy] = useState<"open" | "save" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [toolStatus, setToolStatus] = useState<ToolStatus>({ kind: "idle" });
+
+  // Auto-clear successful tool status after a few seconds.
+  useEffect(() => {
+    if (toolStatus.kind !== "ok") return;
+    const t = setTimeout(() => setToolStatus({ kind: "idle" }), 6000);
+    return () => clearTimeout(t);
+  }, [toolStatus]);
 
   // Bumped each time we want to remount the editor with a new initial value
   // (Milkdown is uncontrolled — defaultValueCtx is read once at construction).
@@ -227,6 +242,7 @@ export default function Home() {
                 >
                   {busy === "save" ? "…" : "Save"}
                 </button>
+                <ToolsMenu onStatus={setToolStatus} />
               </>
             ) : (
               <span className="px-2 text-[10px] text-[var(--text-muted)]">
@@ -286,7 +302,13 @@ export default function Home() {
         <span>
           {stats.chars.toLocaleString()} chars · {stats.lines.toLocaleString()} lines
         </span>
-        {error ? (
+        {toolStatus.kind === "running" ? (
+          <span className="truncate text-[var(--text-dim)]">working…</span>
+        ) : toolStatus.kind === "ok" ? (
+          <span className="truncate text-[var(--success)]">{toolStatus.message}</span>
+        ) : toolStatus.kind === "err" ? (
+          <span className="truncate text-[var(--danger)]">{toolStatus.message}</span>
+        ) : error ? (
           <span className="truncate text-[var(--danger)]">{error}</span>
         ) : openPath ? (
           <span className="truncate">{openPath}</span>
