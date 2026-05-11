@@ -25,10 +25,41 @@ function formatError(e: unknown): string {
 const toolbarBtn =
   "rounded-md px-2.5 py-1 text-xs font-medium text-[var(--text-dim)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40";
 
+// Shown on launch so the editor never starts empty. Demonstrates headings,
+// XML pills (Anthropic-style block tags), inline code, and lists.
+const SAMPLE = `# Untitled prompt
+
+This is a sample. Start editing, click **New** for a blank canvas, or **Open** to load a file from your drive.
+
+## Role
+
+<role>
+You are an expert at thoughtful, detailed writing.
+</role>
+
+## Instructions
+
+<instructions>
+1. Be direct.
+2. Cite sources when claims are non-obvious.
+3. Never invent details.
+</instructions>
+
+## Example
+
+<example>
+**User:** Summarize this paragraph in one sentence.
+**Assistant:** [response]
+</example>
+`;
+
 export default function Home() {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(SAMPLE);
   const [openPath, setOpenPath] = useState<string | null>(null);
-  const [savedContent, setSavedContent] = useState<string | null>(null);
+  // savedContent === null means truly untitled+empty; if non-null, dirty when
+  // text diverges from it. Starting at SAMPLE means the sample is "clean"
+  // until the user edits it.
+  const [savedContent, setSavedContent] = useState<string | null>(SAMPLE);
   const [tauri, setTauri] = useState(false);
   const [busy, setBusy] = useState<"open" | "save" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,9 +92,9 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tauri]);
 
-  const dirty = openPath === null
-    ? text.length > 0
-    : savedContent !== null && text !== savedContent;
+  const dirty = savedContent === null
+    ? text.length > 0 // truly untitled — any content counts as unsaved
+    : text !== savedContent;
 
   const stats = useMemo(() => {
     const lines = text === "" ? 0 : text.split("\n").length;
