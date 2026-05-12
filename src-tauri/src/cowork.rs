@@ -5,6 +5,12 @@
 //! On Microsoft Store installs this redirects to
 //! `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\…`.
 //!
+//! When prmptr itself runs inside WSL (Windows + Linux dev shell), it can
+//! still see the Windows-side Claude install via the `/mnt/c/…` mount. We
+//! auto-probe `/mnt/c/Users/<user>/AppData/{Local\Packages\…,Roaming}/Claude/`
+//! for every user directory under `/mnt/c/Users/` so no env var is needed
+//! for the common case.
+//!
 //! Each session is one `local_<sessionId>.json` file (plus a `.bak` backup
 //! and a sibling directory of the same name holding audit log + outputs).
 //!
@@ -84,8 +90,7 @@ struct RawSession {
 }
 
 fn cowork_root() -> Option<PathBuf> {
-    // Explicit override wins (useful in WSL dev where the env vars don't
-    // resolve to Windows paths).
+    // Explicit override wins — useful for one-off testing or unusual installs.
     if let Ok(s) = std::env::var("PRMPTR_COWORK_PATH") {
         let p = PathBuf::from(s);
         if p.is_dir() {
@@ -93,26 +98,105 @@ fn cowork_root() -> Option<PathBuf> {
         }
     }
 
-    let candidates: [Option<PathBuf>; 2] = [
-        // Non-Store install
-        std::env::var_os("APPDATA").map(|a| {
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    // Native Windows paths (only populated when these env vars are set).
+    if let Some(a) = std::env::var_os("APPDATA") {
+        candidates.push(
             PathBuf::from(a)
                 .join("Claude")
-                .join("local-agent-mode-sessions")
-        }),
-        // Microsoft Store install (sandboxed package path)
-        std::env::var_os("LOCALAPPDATA").map(|a| {
+                .join("local-agent-mode-sessions"),
+        );
+    }
+    if let Some(a) = std::env::var_os("LOCALAPPDATA") {
+        candidates.push(
             PathBuf::from(a)
                 .join("Packages")
                 .join("Claude_pzs8sxrjxfjjc")
                 .join("LocalCache")
                 .join("Roaming")
                 .join("Claude")
-                .join("local-agent-mode-sessions")
-        }),
-    ];
+                .join("local-agent-mode-sessions"),
+        );
+    }
 
-    candidates.into_iter().flatten().find(|p| p.is_dir())
+    // WSL: probe the Windows side via /mnt/c. Order: Microsoft Store install
+    // first (more common on fresh Win11), classic install second, per user.
+    if is_wsl() {
+        candidates.extend(wsl_cowork_candidates(Path::new("/mnt/c")));
+    }
+
+    candidates.into_iter().find(|p| p.is_dir())
+}
+
+/// True when this Linux binary is running under WSL. Detects via the
+/// `microsoft`/`WSL` marker the WSL kernel injects into `/proc/version`.
+/// Returns false on non-Linux platforms.
+fn is_wsl() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        match std::fs::read_to_string("/proc/version") {
+            Ok(v) => {
+                let v = v.to_ascii_lowercase();
+                v.contains("microsoft") || v.contains("wsl")
+            }
+            Err(_) => false,
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        false
+    }
+}
+
+/// Build a list of candidate `local-agent-mode-sessions` directories under
+/// a WSL-mounted Windows drive. One entry per (Windows user × install
+/// variant). Reserved Windows pseudo-users (`Public`, `Default`, …) are
+/// skipped. Returns an empty vec if the mount or `Users` dir is unreadable.
+fn wsl_cowork_candidates(mnt_c: &Path) -> Vec<PathBuf> {
+    let users_dir = mnt_c.join("Users");
+    let entries = match std::fs::read_dir(&users_dir) {
+        Ok(e) => e,
+        Err(_) => return Vec::new(),
+    };
+    let mut out = Vec::new();
+    for entry in entries.flatten() {
+        let name = match entry.file_name().into_string() {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        // Skip Windows reserved pseudo-users and stray files.
+        let lower = name.to_ascii_lowercase();
+        if matches!(
+            lower.as_str(),
+            "public" | "default" | "default user" | "all users"
+        ) {
+            continue;
+        }
+        let home = entry.path();
+        if !home.is_dir() {
+            continue;
+        }
+        // Microsoft Store install (sandboxed package path).
+        out.push(
+            home.join("AppData")
+                .join("Local")
+                .join("Packages")
+                .join("Claude_pzs8sxrjxfjjc")
+                .join("LocalCache")
+                .join("Roaming")
+                .join("Claude")
+                .join("local-agent-mode-sessions"),
+        );
+        // Classic (non-Store) install.
+        out.push(
+            home.join("AppData")
+                .join("Roaming")
+                .join("Claude")
+                .join("local-agent-mode-sessions"),
+        );
+    }
+    out
 }
 
 fn read_session_file(path: &Path) -> Option<CoworkSummary> {
@@ -515,6 +599,45 @@ mod tests {
                 "local_cccccccc-cccc-cccc-cccc-cccccccccccc".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn wsl_cowork_candidates_builds_expected_paths() {
+        let tmp = std::env::temp_dir().join(format!(
+            "prmptr-wsl-test-{}",
+            std::process::id()
+        ));
+        let users = tmp.join("Users");
+        let camil = users.join("camil");
+        std::fs::create_dir_all(&camil).unwrap();
+        // Reserved pseudo-user — must be skipped.
+        std::fs::create_dir_all(users.join("Public")).unwrap();
+        // Lowercase variant of reserved name — also skipped.
+        std::fs::create_dir_all(users.join("default")).unwrap();
+
+        let got = wsl_cowork_candidates(&tmp);
+
+        // Two variants for camil (store + classic), zero for the pseudo-users.
+        assert_eq!(got.len(), 2, "got: {:?}", got);
+        assert!(got[0].ends_with(
+            "Users/camil/AppData/Local/Packages/Claude_pzs8sxrjxfjjc/LocalCache/Roaming/Claude/local-agent-mode-sessions"
+        ));
+        assert!(got[1].ends_with(
+            "Users/camil/AppData/Roaming/Claude/local-agent-mode-sessions"
+        ));
+
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    #[test]
+    fn wsl_cowork_candidates_handles_missing_users_dir() {
+        let tmp = std::env::temp_dir().join(format!(
+            "prmptr-wsl-test-empty-{}",
+            std::process::id()
+        ));
+        // Don't create anything under tmp — Users/ shouldn't exist.
+        let got = wsl_cowork_candidates(&tmp);
+        assert!(got.is_empty());
     }
 
     /// End-to-end against the live Claude Local Storage on this machine.
