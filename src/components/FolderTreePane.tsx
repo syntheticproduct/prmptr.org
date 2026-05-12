@@ -14,10 +14,22 @@ import {
 } from "@/lib/tauri-fs";
 
 const ROOT_STORAGE_KEY = "prmptr.folder-pane.root";
+const WIDTH_STORAGE_KEY = "prmptr.folder-pane.width";
+const DEFAULT_WIDTH = 280;
+const MIN_WIDTH = 180;
+const MAX_WIDTH = 600;
+
+function clampWidth(n: number): number {
+  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, n));
+}
 
 type Props = {
   onOpenFile: (path: string) => Promise<void> | void;
   selectedPath: string | null;
+  // If set, overrides any persisted root on mount and writes through to
+  // localStorage. Used by the dev-mode default to point the pane at the
+  // folder containing the auto-opened file.
+  initialRoot?: string | null;
 };
 
 function basename(p: string): string {
@@ -31,7 +43,7 @@ function formatError(e: unknown): string {
   return String(e);
 }
 
-export function FolderTreePane({ onOpenFile, selectedPath }: Props) {
+export function FolderTreePane({ onOpenFile, selectedPath, initialRoot }: Props) {
   const [root, setRoot] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState<Set<string>>(new Set());
@@ -39,14 +51,56 @@ export function FolderTreePane({ onOpenFile, selectedPath }: Props) {
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
+  const [width, setWidth] = useState(DEFAULT_WIDTH);
   const queryInputRef = useRef<HTMLInputElement>(null);
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
-  // Restore root from localStorage on mount
+  // Restore persisted width on mount.
   useEffect(() => {
-    const saved = localStorage.getItem(ROOT_STORAGE_KEY);
+    const saved = localStorage.getItem(WIDTH_STORAGE_KEY);
     if (saved) {
-      setRoot(saved);
-      void loadInto(saved);
+      const n = parseInt(saved, 10);
+      if (Number.isFinite(n)) setWidth(clampWidth(n));
+    }
+  }, []);
+
+  const onResizeStart = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+      dragRef.current = { startX: e.clientX, startWidth: width };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+
+      const onMove = (ev: PointerEvent) => {
+        if (!dragRef.current) return;
+        const dx = ev.clientX - dragRef.current.startX;
+        setWidth(clampWidth(dragRef.current.startWidth + dx));
+      };
+      const onUp = (ev: PointerEvent) => {
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        if (dragRef.current) {
+          const dx = ev.clientX - dragRef.current.startX;
+          const final = clampWidth(dragRef.current.startWidth + dx);
+          localStorage.setItem(WIDTH_STORAGE_KEY, String(final));
+        }
+        dragRef.current = null;
+      };
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+    },
+    [width],
+  );
+
+  // Pick initial root: prop wins (used by dev-mode override), else localStorage.
+  useEffect(() => {
+    const start = initialRoot ?? localStorage.getItem(ROOT_STORAGE_KEY);
+    if (start) {
+      if (initialRoot) localStorage.setItem(ROOT_STORAGE_KEY, initialRoot);
+      setRoot(start);
+      void loadInto(start);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -154,7 +208,16 @@ export function FolderTreePane({ onOpenFile, selectedPath }: Props) {
   }, []);
 
   return (
-    <aside className="flex w-[280px] flex-shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg)] text-xs">
+    <aside
+      style={{ width }}
+      className="relative flex flex-shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg)] text-xs"
+    >
+      {/* Resize handle on right edge */}
+      <div
+        onPointerDown={onResizeStart}
+        title="Drag to resize"
+        className="absolute right-0 top-0 z-20 h-full w-1.5 -mr-[3px] cursor-col-resize hover:bg-[var(--accent)]/40"
+      />
       {/* Header */}
       <header className="flex h-[36px] flex-shrink-0 items-center justify-between gap-2 border-b border-[var(--border)] px-3">
         <span

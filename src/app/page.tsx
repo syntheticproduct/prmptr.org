@@ -15,6 +15,11 @@ import { CoworkSessions } from "@/components/CoworkSessions";
 import { ViewModeToggle, type ViewMode } from "@/components/ViewModeToggle";
 import { FolderTreePane } from "@/components/FolderTreePane";
 import type { CoworkSummary } from "@/lib/tauri-fs";
+import {
+  DEV_DEFAULT_FILE,
+  DEV_DEFAULT_FOLDER_ROOT,
+  DEV_DEFAULT_VIEW_MODE,
+} from "@/lib/dev-defaults";
 
 type ToolStatus =
   | { kind: "idle" }
@@ -77,7 +82,9 @@ export default function Home() {
   const [dragActive, setDragActive] = useState(false);
   const [toolStatus, setToolStatus] = useState<ToolStatus>({ kind: "idle" });
   const [coworkOpen, setCoworkOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("single");
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    DEV_DEFAULT_VIEW_MODE ?? "single",
+  );
 
   // Auto-clear successful tool status after a few seconds.
   useEffect(() => {
@@ -102,7 +109,12 @@ export default function Home() {
     (async () => {
       try {
         const path = await takeInitialPath();
-        if (!cancelled && path) await loadFromPath(path);
+        if (cancelled) return;
+        if (path) {
+          await loadFromPath(path);
+        } else if (DEV_DEFAULT_FILE) {
+          await loadFromPath(DEV_DEFAULT_FILE);
+        }
       } catch {
         /* no CLI path or backend not ready — ignore */
       }
@@ -308,6 +320,7 @@ export default function Home() {
           <FolderTreePane
             onOpenFile={loadFromPath}
             selectedPath={openPath}
+            initialRoot={DEV_DEFAULT_FOLDER_ROOT}
           />
         )}
 
