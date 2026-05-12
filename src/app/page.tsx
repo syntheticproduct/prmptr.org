@@ -12,6 +12,8 @@ import {
 import { MilkdownEditor } from "@/components/MilkdownEditor";
 import { ToolsMenu } from "@/components/ToolsMenu";
 import { CoworkSessions } from "@/components/CoworkSessions";
+import { ViewModeToggle, type ViewMode } from "@/components/ViewModeToggle";
+import { FolderTreePane } from "@/components/FolderTreePane";
 import type { CoworkSummary } from "@/lib/tauri-fs";
 
 type ToolStatus =
@@ -75,6 +77,7 @@ export default function Home() {
   const [dragActive, setDragActive] = useState(false);
   const [toolStatus, setToolStatus] = useState<ToolStatus>({ kind: "idle" });
   const [coworkOpen, setCoworkOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("single");
 
   // Auto-clear successful tool status after a few seconds.
   useEffect(() => {
@@ -281,6 +284,7 @@ export default function Home() {
                   onStatus={setToolStatus}
                   onOpenCowork={() => setCoworkOpen(true)}
                 />
+                <ViewModeToggle value={viewMode} onChange={setViewMode} />
               </>
             ) : (
               <span className="px-2 text-[10px] text-[var(--text-muted)]">
@@ -299,39 +303,64 @@ export default function Home() {
         </div>
       </header>
 
-      <div
-        className={`prmptr-editor-host relative min-h-0 flex-1 overflow-y-auto transition ${
-          dragActive ? "ring-2 ring-inset ring-[var(--accent)]" : ""
-        }`}
-        onDragEnter={(e) => {
-          e.preventDefault();
-          if (e.dataTransfer.types.includes("Files")) setDragActive(true);
-        }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "copy";
-          if (e.dataTransfer.types.includes("Files")) setDragActive(true);
-        }}
-        onDragLeave={(e) => {
-          // Only clear when leaving the host, not when crossing child boundaries
-          if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
-          setDragActive(false);
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragActive(false);
-          const file = e.dataTransfer.files?.[0];
-          if (file) void loadFromDroppedFile(file);
-        }}
-      >
-        <MilkdownEditor
-          key={editorEpoch}
-          defaultValue={text}
-          onChange={setText}
-        />
-        {dragActive && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[var(--bg)]/60 text-sm text-[var(--text-dim)]">
-            Drop file to open
+      <div className="flex min-h-0 flex-1">
+        {viewMode === "folder" && (
+          <FolderTreePane
+            onOpenFile={loadFromPath}
+            selectedPath={openPath}
+          />
+        )}
+
+        {(viewMode === "single" || viewMode === "folder") && (
+          <div
+            className={`prmptr-editor-host relative min-h-0 flex-1 overflow-y-auto transition ${
+              dragActive ? "ring-2 ring-inset ring-[var(--accent)]" : ""
+            }`}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              if (e.dataTransfer.types.includes("Files")) setDragActive(true);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "copy";
+              if (e.dataTransfer.types.includes("Files")) setDragActive(true);
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+              setDragActive(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragActive(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) void loadFromDroppedFile(file);
+            }}
+          >
+            <MilkdownEditor
+              key={editorEpoch}
+              defaultValue={text}
+              onChange={setText}
+            />
+            {dragActive && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[var(--bg)]/60 text-sm text-[var(--text-dim)]">
+                Drop file to open
+              </div>
+            )}
+          </div>
+        )}
+
+        {(viewMode === "cowork" || viewMode === "history") && (
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-[var(--bg)] text-sm text-[var(--text-muted)]">
+            <div className="max-w-md text-center">
+              <div className="mb-2 font-mono text-xs uppercase tracking-wider text-[var(--text-faint)]">
+                {viewMode} view
+              </div>
+              <div className="text-[var(--text-dim)]">
+                {viewMode === "cowork"
+                  ? "Inline Cowork browser — coming soon. For now, use Tools → Browse Cowork sessions."
+                  : "History view — coming soon. Recent prompts from ~/.claude/history.jsonl."}
+              </div>
+            </div>
           </div>
         )}
       </div>

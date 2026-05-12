@@ -36,6 +36,22 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown"],
+        "name": "Markdown document",
+        "description": "Markdown document — open with prmptr.org",
+        "role": "Editor",
+        "mimeType": "text/markdown"
+      },
+      {
+        "ext": ["txt"],
+        "name": "Plain text",
+        "description": "Plain text — open with prmptr.org",
+        "role": "Editor",
+        "mimeType": "text/plain"
+      }
+    ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

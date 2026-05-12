@@ -37,6 +37,25 @@ export async function pickFileToOpen(): Promise<string | null> {
   return typeof selected === "string" ? selected : null;
 }
 
+export async function pickFolderToOpen(): Promise<string | null> {
+  const selected = await openDialog({
+    multiple: false,
+    directory: true,
+  });
+  return typeof selected === "string" ? selected : null;
+}
+
+export type DirChild = {
+  name: string;
+  path: string;
+  isDir: boolean;
+  isHidden: boolean;
+};
+
+export async function listDir(path: string): Promise<DirChild[]> {
+  return invoke<DirChild[]>("list_dir", { path });
+}
+
 export async function pickFileToSave(defaultPath?: string): Promise<string | null> {
   const selected = await saveDialog({
     filters: FILTERS,

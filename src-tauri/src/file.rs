@@ -73,3 +73,39 @@ pub fn write_prompt_file(path: PathBuf, content: String) -> Result<FileMetadata,
     std::fs::write(&path, &content)?;
     compute_metadata(&path, &content)
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirChild {
+    pub name: String,
+    pub path: PathBuf,
+    pub is_dir: bool,
+    pub is_hidden: bool,
+}
+
+/// List immediate children of a directory. Folders first, then files,
+/// alphabetical within each group. `is_hidden` covers Unix dotfiles only —
+/// Windows hidden-attribute detection is deferred.
+#[tauri::command]
+pub fn list_dir(path: PathBuf) -> Result<Vec<DirChild>, FileError> {
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(&path)? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let is_hidden = name.starts_with('.');
+        let entry_path = entry.path();
+        let is_dir = entry_path.is_dir();
+        out.push(DirChild {
+            name,
+            path: entry_path,
+            is_dir,
+            is_hidden,
+        });
+    }
+    out.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+    });
+    Ok(out)
+}

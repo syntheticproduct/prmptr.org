@@ -8,7 +8,7 @@ use std::sync::Mutex;
 
 use clipboard::clipboard_image_to_path;
 use cowork::{list_cowork_sessions, set_cowork_archived};
-use file::{read_prompt_file, write_prompt_file};
+use file::{list_dir, read_prompt_file, write_prompt_file};
 use global_settings::{open_global_settings_window, read_global_settings};
 
 /// A one-shot holder for the file path passed on the command line.
@@ -44,6 +44,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_prompt_file,
             write_prompt_file,
+            list_dir,
             take_initial_path,
             clipboard_image_to_path,
             list_cowork_sessions,
