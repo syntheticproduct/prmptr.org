@@ -98,10 +98,22 @@ export type CoworkSummary = {
   sourcePath: string;
 };
 
+export type CoworkListing = {
+  sessions: CoworkSummary[];
+  // Session IDs (`local_<uuid>` form) in the exact top-of-sidebar order
+  // Claude Desktop persists. May be a subset of the starred sessions —
+  // anything starred but not listed here renders below in the default sort.
+  pinnedOrder: string[];
+  // If pin order couldn't be read (locked DB, missing dir, schema change),
+  // this carries a short explanation; pinnedOrder will be empty.
+  pinnedOrderWarning: string | null;
+};
+
 // List Cowork-mode session summaries from disk. Throws CoworkError on
-// failure (kind: "NotFound" or "Io").
-export async function listCoworkSessions(): Promise<CoworkSummary[]> {
-  return invoke<CoworkSummary[]>("list_cowork_sessions");
+// failure to enumerate the sessions themselves; pin-order failures are
+// non-fatal and surface via `pinnedOrderWarning`.
+export async function listCoworkSessions(): Promise<CoworkListing> {
+  return invoke<CoworkListing>("list_cowork_sessions");
 }
 
 export type ArchiveOutcome = {
