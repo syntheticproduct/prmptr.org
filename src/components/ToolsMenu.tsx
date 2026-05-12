@@ -28,13 +28,18 @@ type Props = {
   onOpenCowork: () => void;
 };
 
+type SubKey = "code" | "cowork";
+
 export function ToolsMenu({ onStatus, onOpenCowork }: Props) {
   const [open, setOpen] = useState(false);
+  const [activeSub, setActiveSub] = useState<SubKey | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click or Escape.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setActiveSub(null);
+      return;
+    }
     const onClick = (e: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -51,8 +56,13 @@ export function ToolsMenu({ onStatus, onOpenCowork }: Props) {
     };
   }, [open]);
 
-  const runClipboardImageToPath = useCallback(async () => {
+  const closeAll = () => {
     setOpen(false);
+    setActiveSub(null);
+  };
+
+  const runClipboardImageToPath = useCallback(async () => {
+    closeAll();
     onStatus({ kind: "running" });
     try {
       const r = await clipboardImageToPath();
@@ -64,6 +74,20 @@ export function ToolsMenu({ onStatus, onOpenCowork }: Props) {
       onStatus({ kind: "err", message: formatError(e) });
     }
   }, [onStatus]);
+
+  const openGlobalSettings = useCallback(async () => {
+    closeAll();
+    try {
+      await invoke("open_global_settings_window");
+    } catch (e) {
+      onStatus({ kind: "err", message: formatError(e) });
+    }
+  }, [onStatus]);
+
+  const parentItem =
+    "flex w-full items-center justify-between gap-6 px-3 py-1.5 text-left text-xs transition";
+  const submenuItem =
+    "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-[var(--surface-3)]";
 
   return (
     <div ref={rootRef} className="relative">
@@ -80,60 +104,96 @@ export function ToolsMenu({ onStatus, onOpenCowork }: Props) {
       {open && (
         <div
           role="menu"
-          className="absolute left-0 top-full z-20 mt-1 min-w-[280px] overflow-hidden rounded-md bg-[var(--surface-2)] shadow-lg ring-1 ring-[var(--border-strong)]"
+          className="absolute left-0 top-full z-20 mt-1 min-w-[200px] overflow-visible rounded-md bg-[var(--surface-2)] py-1 shadow-lg ring-1 ring-[var(--border-strong)]"
         >
-          <div className="border-b border-[var(--border)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-            Clipboard
+          {/* Claude Code submenu */}
+          <div
+            className="relative"
+            onMouseEnter={() => setActiveSub("code")}
+          >
+            <button
+              role="menuitem"
+              aria-haspopup="menu"
+              aria-expanded={activeSub === "code"}
+              onClick={() => setActiveSub((s) => (s === "code" ? null : "code"))}
+              className={`${parentItem} ${
+                activeSub === "code"
+                  ? "bg-[var(--surface-3)] text-[var(--text)]"
+                  : "text-[var(--text)] hover:bg-[var(--surface-3)]"
+              }`}
+            >
+              <span>Claude Code</span>
+              <span className="text-[var(--text-muted)]">▸</span>
+            </button>
+            {activeSub === "code" && (
+              <div
+                role="menu"
+                className="absolute left-full top-0 z-30 ml-1 min-w-[280px] overflow-hidden rounded-md bg-[var(--surface-2)] py-1 shadow-lg ring-1 ring-[var(--border-strong)]"
+              >
+                <button
+                  role="menuitem"
+                  onClick={openGlobalSettings}
+                  className={submenuItem}
+                >
+                  <span className="text-xs text-[var(--text)]">Global Settings</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">
+                    Open ~/.claude/ tree in a new window
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
-          <button
-            role="menuitem"
-            onClick={runClipboardImageToPath}
-            className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-[var(--surface-3)]"
+
+          {/* Claude Cowork submenu */}
+          <div
+            className="relative"
+            onMouseEnter={() => setActiveSub("cowork")}
           >
-            <span className="text-xs text-[var(--text)]">Image → file path</span>
-            <span className="text-[10px] text-[var(--text-muted)]">
-              Save clipboard image to temp, replace clipboard with the saved path
-            </span>
-          </button>
-          <div className="border-b border-t border-[var(--border)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-            Claude
+            <button
+              role="menuitem"
+              aria-haspopup="menu"
+              aria-expanded={activeSub === "cowork"}
+              onClick={() => setActiveSub((s) => (s === "cowork" ? null : "cowork"))}
+              className={`${parentItem} ${
+                activeSub === "cowork"
+                  ? "bg-[var(--surface-3)] text-[var(--text)]"
+                  : "text-[var(--text)] hover:bg-[var(--surface-3)]"
+              }`}
+            >
+              <span>Claude Cowork</span>
+              <span className="text-[var(--text-muted)]">▸</span>
+            </button>
+            {activeSub === "cowork" && (
+              <div
+                role="menu"
+                className="absolute left-full top-0 z-30 ml-1 min-w-[280px] overflow-hidden rounded-md bg-[var(--surface-2)] py-1 shadow-lg ring-1 ring-[var(--border-strong)]"
+              >
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    closeAll();
+                    onOpenCowork();
+                  }}
+                  className={submenuItem}
+                >
+                  <span className="text-xs text-[var(--text)]">Browse sessions</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">
+                    List all your Claude Desktop Cowork chats and load a summary
+                  </span>
+                </button>
+                <button
+                  role="menuitem"
+                  onClick={runClipboardImageToPath}
+                  className={submenuItem}
+                >
+                  <span className="text-xs text-[var(--text)]">Image → file path</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">
+                    Save clipboard image to temp, replace clipboard with the saved path
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
-          <button
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onOpenCowork();
-            }}
-            className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-[var(--surface-3)]"
-          >
-            <span className="text-xs text-[var(--text)]">Browse Cowork sessions</span>
-            <span className="text-[10px] text-[var(--text-muted)]">
-              List all your Claude Desktop Cowork chats and load a summary
-            </span>
-          </button>
-          <button
-            role="menuitem"
-            onClick={async () => {
-              setOpen(false);
-              try {
-                await invoke("open_global_settings_window");
-              } catch (e) {
-                onStatus({
-                  kind: "err",
-                  message:
-                    e && typeof e === "object" && "message" in e
-                      ? String((e as { message: unknown }).message)
-                      : String(e),
-                });
-              }
-            }}
-            className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-[var(--surface-3)]"
-          >
-            <span className="text-xs text-[var(--text)]">Global Settings</span>
-            <span className="text-[10px] text-[var(--text-muted)]">
-              Open ~/.claude/ tree in a new window
-            </span>
-          </button>
         </div>
       )}
     </div>
