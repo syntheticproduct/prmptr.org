@@ -11,6 +11,8 @@ import {
 } from "@/lib/tauri-fs";
 import { MilkdownEditor } from "@/components/MilkdownEditor";
 import { ToolsMenu } from "@/components/ToolsMenu";
+import { CoworkSessions } from "@/components/CoworkSessions";
+import type { CoworkSummary } from "@/lib/tauri-fs";
 
 type ToolStatus =
   | { kind: "idle" }
@@ -72,6 +74,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [toolStatus, setToolStatus] = useState<ToolStatus>({ kind: "idle" });
+  const [coworkOpen, setCoworkOpen] = useState(false);
 
   // Auto-clear successful tool status after a few seconds.
   useEffect(() => {
@@ -133,6 +136,38 @@ export default function Home() {
       setError(formatError(e));
     }
   }, []);
+
+  const handleCoworkSelect = useCallback(
+    (s: CoworkSummary) => {
+      if (!confirmDiscard()) return;
+      const created = s.createdAt ? new Date(s.createdAt).toLocaleString() : "unknown";
+      const lastActive = s.lastActivityAt
+        ? new Date(s.lastActivityAt).toLocaleString()
+        : "unknown";
+      const meta = [
+        `**Created**: ${created}`,
+        `**Last active**: ${lastActive}`,
+        s.model ? `**Model**: \`${s.model}\`` : null,
+        s.isStarred ? "**★ Starred**" : null,
+        s.isArchived ? "**Archived**" : null,
+        s.cwd ? `**Working folder**: \`${s.cwd}\`` : null,
+        `**Session ID**: \`${s.sessionId}\``,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      const body = `# ${s.title}\n\n${meta}\n\n## Initial prompt\n\n${
+        s.initialMessage ?? "_(none recorded)_"
+      }\n`;
+
+      setText(body);
+      setOpenPath(null);
+      setSavedContent(null);
+      setError(null);
+      setEditorEpoch((n) => n + 1);
+    },
+    [confirmDiscard],
+  );
 
   // HTML5 drag-drop. Tauri's OS-level drag-drop (dragDropEnabled: true) was
   // unreliable on WSLg and tied us to platform-specific behavior — HTML5
@@ -242,7 +277,10 @@ export default function Home() {
                 >
                   {busy === "save" ? "…" : "Save"}
                 </button>
-                <ToolsMenu onStatus={setToolStatus} />
+                <ToolsMenu
+                  onStatus={setToolStatus}
+                  onOpenCowork={() => setCoworkOpen(true)}
+                />
               </>
             ) : (
               <span className="px-2 text-[10px] text-[var(--text-muted)]">
@@ -316,6 +354,12 @@ export default function Home() {
           <span>not saved</span>
         )}
       </footer>
+
+      <CoworkSessions
+        open={coworkOpen}
+        onClose={() => setCoworkOpen(false)}
+        onSelect={handleCoworkSelect}
+      />
     </main>
   );
 }

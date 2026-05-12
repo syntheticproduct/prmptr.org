@@ -66,6 +66,39 @@ export type ClipboardImageResult = {
   bytesWritten: number;
 };
 
+export type CoworkSummary = {
+  sessionId: string;
+  title: string;
+  createdAt: number | null;
+  lastActivityAt: number | null;
+  model: string | null;
+  isStarred: boolean;
+  isArchived: boolean;
+  cwd: string | null;
+  initialMessage: string | null;
+  sourcePath: string;
+};
+
+// List Cowork-mode session summaries from disk. Throws CoworkError on
+// failure (kind: "NotFound" or "Io").
+export async function listCoworkSessions(): Promise<CoworkSummary[]> {
+  return invoke<CoworkSummary[]>("list_cowork_sessions");
+}
+
+export type ArchiveOutcome = {
+  updated: number;
+  failed: { path: string; reason: string }[];
+};
+
+// Bulk set isArchived on the given session JSON files. Each path comes from
+// CoworkSummary.sourcePath. Doesn't fail-fast — returns per-path outcome.
+export async function setCoworkArchived(
+  paths: string[],
+  archived: boolean,
+): Promise<ArchiveOutcome> {
+  return invoke<ArchiveOutcome>("set_cowork_archived", { paths, archived });
+}
+
 // Read clipboard image, save as PNG in OS temp, replace clipboard with the
 // file path as text. Returns metadata on success; throws ClipboardError
 // (shape: { kind, message }) on failure including the no-image case.

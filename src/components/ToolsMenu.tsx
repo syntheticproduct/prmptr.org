@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { clipboardImageToPath } from "@/lib/tauri-fs";
 
 type Status =
@@ -24,9 +25,10 @@ function formatError(e: unknown): string {
 
 type Props = {
   onStatus: (s: Status) => void;
+  onOpenCowork: () => void;
 };
 
-export function ToolsMenu({ onStatus }: Props) {
+export function ToolsMenu({ onStatus, onOpenCowork }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -91,6 +93,45 @@ export function ToolsMenu({ onStatus }: Props) {
             <span className="text-xs text-[var(--text)]">Image → file path</span>
             <span className="text-[10px] text-[var(--text-muted)]">
               Save clipboard image to temp, replace clipboard with the saved path
+            </span>
+          </button>
+          <div className="border-b border-t border-[var(--border)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+            Claude
+          </div>
+          <button
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onOpenCowork();
+            }}
+            className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-[var(--surface-3)]"
+          >
+            <span className="text-xs text-[var(--text)]">Browse Cowork sessions</span>
+            <span className="text-[10px] text-[var(--text-muted)]">
+              List all your Claude Desktop Cowork chats and load a summary
+            </span>
+          </button>
+          <button
+            role="menuitem"
+            onClick={async () => {
+              setOpen(false);
+              try {
+                await invoke("open_global_settings_window");
+              } catch (e) {
+                onStatus({
+                  kind: "err",
+                  message:
+                    e && typeof e === "object" && "message" in e
+                      ? String((e as { message: unknown }).message)
+                      : String(e),
+                });
+              }
+            }}
+            className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-[var(--surface-3)]"
+          >
+            <span className="text-xs text-[var(--text)]">Global Settings</span>
+            <span className="text-[10px] text-[var(--text-muted)]">
+              Open ~/.claude/ tree in a new window
             </span>
           </button>
         </div>
