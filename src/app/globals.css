@@ -177,6 +177,10 @@ body .prmptr-editor-host .ProseMirror span[data-type="html"] {
   padding: 0.1em 0.35em;
   border-radius: 4px;
 }
+body .prmptr-editor-host .ProseMirror span[data-type="html"].ProseMirror-selectednode {
+  outline: none;
+  background: var(--accent-tint-strong);
+}
 
 body .prmptr-editor-host .ProseMirror::selection,
 body .prmptr-editor-host .ProseMirror *::selection {
