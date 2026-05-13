@@ -82,7 +82,7 @@ export function ToolsMenu({ onStatus, onOpenCowork }: Props) {
           role="menu"
           className="absolute left-0 top-full z-20 mt-1 min-w-[280px] overflow-hidden rounded-md bg-[var(--surface-2)] shadow-lg ring-1 ring-[var(--border-strong)]"
         >
-          <div className="border-b border-[var(--border)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          <div className="border-b border-[var(--border)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--text-dim)]">
             Clipboard
           </div>
           <button
@@ -91,11 +91,11 @@ export function ToolsMenu({ onStatus, onOpenCowork }: Props) {
             className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-[var(--surface-3)]"
           >
             <span className="text-xs text-[var(--text)]">Image → file path</span>
-            <span className="text-[10px] text-[var(--text-muted)]">
+            <span className="text-[10px] text-[var(--text-dim)]">
               Save clipboard image to temp, replace clipboard with the saved path
             </span>
           </button>
-          <div className="border-b border-t border-[var(--border)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          <div className="border-b border-t border-[var(--border)] px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--text-dim)]">
             Claude
           </div>
           <button
@@ -107,7 +107,7 @@ export function ToolsMenu({ onStatus, onOpenCowork }: Props) {
             className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-[var(--surface-3)]"
           >
             <span className="text-xs text-[var(--text)]">Browse Cowork sessions</span>
-            <span className="text-[10px] text-[var(--text-muted)]">
+            <span className="text-[10px] text-[var(--text-dim)]">
               List all your Claude Desktop Cowork chats and load a summary
             </span>
           </button>
@@ -130,7 +130,7 @@ export function ToolsMenu({ onStatus, onOpenCowork }: Props) {
             className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-[var(--surface-3)]"
           >
             <span className="text-xs text-[var(--text)]">Global Settings</span>
-            <span className="text-[10px] text-[var(--text-muted)]">
+            <span className="text-[10px] text-[var(--text-dim)]">
               Open ~/.claude/ tree in a new window
             </span>
           </button>

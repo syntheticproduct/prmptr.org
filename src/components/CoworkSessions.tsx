@@ -9,7 +9,12 @@ import {
 
 type LoadState =
   | { kind: "loading" }
-  | { kind: "ok"; sessions: CoworkSummary[] }
+  | {
+      kind: "ok";
+      sessions: CoworkSummary[];
+      pinnedOrder: string[];
+      pinnedOrderWarning: string | null;
+    }
   | { kind: "err"; message: string };
 
 type SortKey = "title" | "lastActivityAt" | "createdAt" | "model";
@@ -62,7 +67,14 @@ export function CoworkSessions({ open, onClose, onSelect }: Props) {
   const refresh = useCallback(() => {
     setState({ kind: "loading" });
     listCoworkSessions()
-      .then((sessions) => setState({ kind: "ok", sessions }))
+      .then((listing) =>
+        setState({
+          kind: "ok",
+          sessions: listing.sessions,
+          pinnedOrder: listing.pinnedOrder,
+          pinnedOrderWarning: listing.pinnedOrderWarning,
+        }),
+      )
       .catch((e) => setState({ kind: "err", message: formatError(e) }));
   }, []);
 
@@ -134,12 +146,29 @@ export function CoworkSessions({ open, onClose, onSelect }: Props) {
     });
   }, [sorted, query, showArchived, starredOnly]);
 
-  // Mirror Claude's sidebar: Pinned section above, Recent below. Each
-  // section honors the active sort within itself.
-  const pinned = useMemo(
-    () => filtered.filter((s) => s.isStarred),
-    [filtered],
-  );
+  // Mirror Claude's sidebar: Pinned section above, Recent below.
+  // Recent honors the active sort. Pinned honors Claude Desktop's
+  // explicit `pinnedOrder` first (top-of-sidebar manual order), then
+  // any starred sessions not in that array fall in below in the active
+  // sort — matching what Claude shows when you've only manually placed
+  // a few chats at the top and let the rest sit in the default order.
+  const pinned = useMemo(() => {
+    const starred = filtered.filter((s) => s.isStarred);
+    const order = state.kind === "ok" ? state.pinnedOrder : [];
+    if (order.length === 0) return starred;
+    const byId = new Map(starred.map((s) => [s.sessionId, s]));
+    const seen = new Set<string>();
+    const head: CoworkSummary[] = [];
+    for (const id of order) {
+      const s = byId.get(id);
+      if (s && !seen.has(id)) {
+        head.push(s);
+        seen.add(id);
+      }
+    }
+    const tail = starred.filter((s) => !seen.has(s.sessionId));
+    return [...head, ...tail];
+  }, [filtered, state]);
   const recent = useMemo(
     () => filtered.filter((s) => !s.isStarred),
     [filtered],
@@ -275,13 +304,25 @@ export function CoworkSessions({ open, onClose, onSelect }: Props) {
     );
   };
 
-  const sectionHeader = (label: string, count: number) => (
+  const sectionHeader = (
+    label: string,
+    count: number,
+    warning?: string | null,
+  ) => (
     <tr className="bg-[var(--bg)]">
       <td
         colSpan={7}
         className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]"
       >
         {label} <span className="text-[var(--text-faint)]">· {count}</span>
+        {warning && (
+          <span
+            className="ml-2 normal-case tracking-normal text-[var(--warning)]"
+            title={warning}
+          >
+            ⚠ pin order unavailable — using default sort
+          </span>
+        )}
       </td>
     </tr>
   );
@@ -432,7 +473,11 @@ export function CoworkSessions({ open, onClose, onSelect }: Props) {
               <tbody>
                 {pinned.length > 0 && (
                   <>
-                    {sectionHeader("Pinned", pinned.length)}
+                    {sectionHeader(
+                      "Pinned",
+                      pinned.length,
+                      state.kind === "ok" ? state.pinnedOrderWarning : null,
+                    )}
                     {pinned.map(renderRow)}
                   </>
                 )}

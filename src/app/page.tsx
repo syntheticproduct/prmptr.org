@@ -14,12 +14,27 @@ import { ToolsMenu } from "@/components/ToolsMenu";
 import { CoworkSessions } from "@/components/CoworkSessions";
 import { ViewModeToggle, type ViewMode } from "@/components/ViewModeToggle";
 import { FolderTreePane } from "@/components/FolderTreePane";
+import {
+  FrontmatterModeToggle,
+  type FrontmatterMode,
+} from "@/components/FrontmatterModeToggle";
+import { FrontmatterPanel } from "@/components/FrontmatterPanel";
+import { joinFrontmatter, parseFrontmatter } from "@/lib/frontmatter";
 import type { CoworkSummary } from "@/lib/tauri-fs";
 import {
   DEV_DEFAULT_FILE,
   DEV_DEFAULT_FOLDER_ROOT,
   DEV_DEFAULT_VIEW_MODE,
 } from "@/lib/dev-defaults";
+
+const FRONTMATTER_MODE_KEY = "prmptr.frontmatter.mode";
+
+function loadFrontmatterMode(): FrontmatterMode {
+  if (typeof window === "undefined") return "hide";
+  const v = window.localStorage.getItem(FRONTMATTER_MODE_KEY);
+  if (v === "hide" || v === "code" || v === "properties") return v;
+  return "hide";
+}
 
 type ToolStatus =
   | { kind: "idle" }
@@ -84,6 +99,25 @@ export default function Home() {
   const [coworkOpen, setCoworkOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(
     DEV_DEFAULT_VIEW_MODE ?? "single",
+  );
+  const [frontmatterMode, setFrontmatterMode] =
+    useState<FrontmatterMode>("hide");
+
+  // Hydrate persisted frontmatter mode after mount to avoid SSR/client mismatch.
+  useEffect(() => {
+    setFrontmatterMode(loadFrontmatterMode());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(FRONTMATTER_MODE_KEY, frontmatterMode);
+  }, [frontmatterMode]);
+
+  // Split current text into raw frontmatter (preserved verbatim) and body.
+  // Body is what the editor sees; reassembly on edit keeps frontmatter intact.
+  const { prefix: fmPrefix, frontmatter, body } = useMemo(
+    () => parseFrontmatter(text),
+    [text],
   );
 
   // Auto-clear successful tool status after a few seconds.
@@ -297,6 +331,10 @@ export default function Home() {
                   onOpenCowork={() => setCoworkOpen(true)}
                 />
                 <ViewModeToggle value={viewMode} onChange={setViewMode} />
+                <FrontmatterModeToggle
+                  value={frontmatterMode}
+                  onChange={setFrontmatterMode}
+                />
               </>
             ) : (
               <span className="px-2 text-[10px] text-[var(--text-muted)]">
@@ -349,10 +387,11 @@ export default function Home() {
               if (file) void loadFromDroppedFile(file);
             }}
           >
+            <FrontmatterPanel mode={frontmatterMode} frontmatter={frontmatter} />
             <MilkdownEditor
               key={editorEpoch}
-              defaultValue={text}
-              onChange={setText}
+              defaultValue={body}
+              onChange={(newBody) => setText(joinFrontmatter(fmPrefix, newBody))}
             />
             {dragActive && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[var(--bg)]/60 text-sm text-[var(--text-dim)]">
