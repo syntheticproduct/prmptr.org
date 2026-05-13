@@ -202,8 +202,8 @@ export default function Home() {
   );
 
   const handleCoworkSelect = useCallback(
-    (s: CoworkSummary) => {
-      if (!confirmDiscard()) return;
+    (s: CoworkSummary): boolean => {
+      if (!confirmDiscard()) return false;
       const created = s.createdAt ? new Date(s.createdAt).toLocaleString() : "unknown";
       const lastActive = s.lastActivityAt
         ? new Date(s.lastActivityAt).toLocaleString()
@@ -229,6 +229,7 @@ export default function Home() {
       setSavedContent(null);
       setError(null);
       setEditorEpoch((n) => n + 1);
+      return true;
     },
     [confirmDiscard],
   );

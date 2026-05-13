@@ -50,7 +50,10 @@ function lastPathSegment(p: string | null, n = 2): string {
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSelect: (s: CoworkSummary) => void;
+  // Returns true if the session was loaded; false if the caller bailed
+  // (e.g. the user cancelled the "discard unsaved changes?" prompt). The
+  // modal stays open on false so the user can retry without reopening.
+  onSelect: (s: CoworkSummary) => boolean;
 };
 
 export function CoworkSessions({ open, onClose, onSelect }: Props) {
@@ -260,8 +263,7 @@ export function CoworkSessions({ open, onClose, onSelect }: Props) {
       <tr
         key={s.sessionId}
         onClick={() => {
-          onSelect(s);
-          onClose();
+          if (onSelect(s)) onClose();
         }}
         className={`cursor-pointer border-b border-[var(--border)] transition ${
           isSel ? "bg-[var(--accent-tint)]" : "hover:bg-[var(--surface-2)]"
