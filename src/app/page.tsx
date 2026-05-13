@@ -13,6 +13,7 @@ import { MilkdownEditor } from "@/components/MilkdownEditor";
 import { FileMenu } from "@/components/FileMenu";
 import { ToolsMenu } from "@/components/ToolsMenu";
 import { CoworkSessions } from "@/components/CoworkSessions";
+import { SessionExplorer } from "@/components/SessionExplorer";
 import { ViewModeToggle, type ViewMode } from "@/components/ViewModeToggle";
 import { FolderTreePane } from "@/components/FolderTreePane";
 import {
@@ -98,6 +99,7 @@ export default function Home() {
   const [dragActive, setDragActive] = useState(false);
   const [toolStatus, setToolStatus] = useState<ToolStatus>({ kind: "idle" });
   const [coworkOpen, setCoworkOpen] = useState(false);
+  const [sessionExplorerOpen, setSessionExplorerOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(
     DEV_DEFAULT_VIEW_MODE ?? "single",
   );
@@ -356,6 +358,7 @@ export default function Home() {
                 <ToolsMenu
                   onStatus={setToolStatus}
                   onOpenCowork={() => setCoworkOpen(true)}
+                  onOpenSessionExplorer={() => setSessionExplorerOpen(true)}
                 />
                 <ViewModeToggle value={viewMode} onChange={setViewMode} />
                 <FrontmatterModeToggle
@@ -472,6 +475,11 @@ export default function Home() {
         open={coworkOpen}
         onClose={() => setCoworkOpen(false)}
         onSelect={handleCoworkSelect}
+      />
+
+      <SessionExplorer
+        open={sessionExplorerOpen}
+        onClose={() => setSessionExplorerOpen(false)}
       />
     </main>
   );
