@@ -7,6 +7,7 @@ type Props = {
   onOpen: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  onSettings: () => void;
   onExit: () => void;
   busy: "open" | "save" | null;
   canSave: boolean;
@@ -14,7 +15,7 @@ type Props = {
 
 const modKey = typeof navigator !== "undefined" && /Mac|iP(hone|ad|od)/.test(navigator.platform) ? "⌘" : "Ctrl";
 
-export function FileMenu({ onNew, onOpen, onSave, onSaveAs, onExit, busy, canSave }: Props) {
+export function FileMenu({ onNew, onOpen, onSave, onSaveAs, onSettings, onExit, busy, canSave }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -102,6 +103,18 @@ export function FileMenu({ onNew, onOpen, onSave, onSaveAs, onExit, busy, canSav
           >
             <span>Save As…</span>
             <span className="text-[10px] text-[var(--text-muted)]">{modKey}+Shift+S</span>
+          </button>
+          <div className="my-1 h-px bg-[var(--border)]" />
+          <button
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onSettings();
+            }}
+            className={item}
+          >
+            <span>Settings</span>
+            <span className="text-[10px] text-[var(--text-muted)]">{modKey}+,</span>
           </button>
           <div className="my-1 h-px bg-[var(--border)]" />
           <button

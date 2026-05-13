@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   isTauri,
   pickFileToOpen,
@@ -314,6 +315,14 @@ export default function Home() {
     }
   };
 
+  const handleSettings = async () => {
+    try {
+      await invoke("open_global_settings_window");
+    } catch (e) {
+      setError(formatError(e));
+    }
+  };
+
   // Keyboard shortcuts: Cmd/Ctrl+S = save, +Shift = save as, +O = open,
   // +N = new, +Q = exit.
   useEffect(() => {
@@ -336,6 +345,9 @@ export default function Home() {
       } else if (key === "q") {
         e.preventDefault();
         void handleExit();
+      } else if (key === ",") {
+        e.preventDefault();
+        void handleSettings();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -358,6 +370,7 @@ export default function Home() {
                   onOpen={handleOpen}
                   onSave={handleSave}
                   onSaveAs={handleSaveAs}
+                  onSettings={handleSettings}
                   onExit={handleExit}
                   busy={busy}
                   canSave={Boolean(text) || Boolean(openPath)}
