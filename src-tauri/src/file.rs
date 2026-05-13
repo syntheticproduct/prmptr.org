@@ -4,6 +4,8 @@ use std::time::SystemTime;
 use serde::Serialize;
 use thiserror::Error;
 
+use crate::path_safety;
+
 #[derive(Debug, Error)]
 pub enum FileError {
     #[error("io: {0}")]
@@ -63,15 +65,44 @@ fn compute_metadata(path: &Path, content: &str) -> Result<FileMetadata, FileErro
 
 #[tauri::command]
 pub fn read_prompt_file(path: PathBuf) -> Result<PromptFile, FileError> {
-    let content = std::fs::read_to_string(&path)?;
-    let metadata = compute_metadata(&path, &content)?;
-    Ok(PromptFile { path, content, metadata })
+    let safe = path_safety::validate_read_path(&path).map_err(|e| {
+        log::warn!("read_prompt_file rejected {}: {}", path.display(), e);
+        e
+    })?;
+    let size = std::fs::metadata(&safe)?.len();
+    path_safety::enforce_size_limit(size).map_err(|e| {
+        log::warn!(
+            "read_prompt_file rejected oversize {}: {}",
+            safe.display(),
+            e
+        );
+        e
+    })?;
+    let content = std::fs::read_to_string(&safe)?;
+    let metadata = compute_metadata(&safe, &content)?;
+    Ok(PromptFile {
+        path: safe,
+        content,
+        metadata,
+    })
 }
 
 #[tauri::command]
 pub fn write_prompt_file(path: PathBuf, content: String) -> Result<FileMetadata, FileError> {
-    std::fs::write(&path, &content)?;
-    compute_metadata(&path, &content)
+    let safe = path_safety::validate_write_path(&path).map_err(|e| {
+        log::warn!("write_prompt_file rejected {}: {}", path.display(), e);
+        e
+    })?;
+    path_safety::enforce_size_limit(content.len() as u64).map_err(|e| {
+        log::warn!(
+            "write_prompt_file rejected oversize {}: {}",
+            safe.display(),
+            e
+        );
+        e
+    })?;
+    std::fs::write(&safe, &content)?;
+    compute_metadata(&safe, &content)
 }
 
 #[derive(Debug, Serialize)]
@@ -88,8 +119,12 @@ pub struct DirChild {
 /// Windows hidden-attribute detection is deferred.
 #[tauri::command]
 pub fn list_dir(path: PathBuf) -> Result<Vec<DirChild>, FileError> {
+    let safe = path_safety::validate_read_path(&path).map_err(|e| {
+        log::warn!("list_dir rejected {}: {}", path.display(), e);
+        e
+    })?;
     let mut out = Vec::new();
-    for entry in std::fs::read_dir(&path)? {
+    for entry in std::fs::read_dir(&safe)? {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().into_owned();
         let is_hidden = name.starts_with('.');

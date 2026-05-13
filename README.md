@@ -49,11 +49,18 @@ Produces an `.exe` (+ NSIS installer) on Windows, `.dmg` on macOS, `.deb`/`.AppI
 - [x] Native file open/save with file picker
 - [x] HTML5 drag-and-drop
 - [x] CLI arg path-passing (`prmptr.exe foo.md` opens that file)
-- [ ] Frontmatter (YAML) round-trip preservation
+- [x] Frontmatter (YAML) round-trip preservation
 - [ ] Claude integration: critique current prompt
 - [ ] Structural side panel: section outline + cross-references
 - [ ] Variable extraction: detect `{var}` placeholders, prompt for values
-- [ ] Code signing + Microsoft Store
+- [ ] Code signing (Azure Trusted Signing) + Microsoft Store
+
+## Documentation
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — developer setup, coding conventions, build & release workflow.
+- [`SECURITY.md`](SECURITY.md) — security policy, threat model, vulnerability reporting.
+- [`PRIVACY.md`](PRIVACY.md) — exactly which files the app reads/writes and what crosses the network (today: nothing).
+- [`CHANGELOG.md`](CHANGELOG.md) — Keep-A-Changelog history.
 
 ## License
 

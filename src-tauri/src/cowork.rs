@@ -25,6 +25,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::path_safety;
+
 #[derive(Debug, Error)]
 pub enum CoworkError {
     #[error("no Claude Cowork session directory found")]
@@ -200,8 +202,20 @@ fn wsl_cowork_candidates(mnt_c: &Path) -> Vec<PathBuf> {
 }
 
 fn read_session_file(path: &Path) -> Option<CoworkSummary> {
-    let content = std::fs::read_to_string(path).ok()?;
-    let raw: RawSession = serde_json::from_str(&content).ok()?;
+    let content = match std::fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(e) => {
+            log::warn!("cowork session unreadable {}: {}", path.display(), e);
+            return None;
+        }
+    };
+    let raw: RawSession = match serde_json::from_str(&content) {
+        Ok(r) => r,
+        Err(e) => {
+            log::warn!("cowork session parse failed {}: {}", path.display(), e);
+            return None;
+        }
+    };
     let session_id = raw.session_id.or_else(|| {
         // Derive from filename: local_<uuid>.json → local_<uuid>
         path.file_stem()
@@ -257,7 +271,7 @@ fn walk_sessions(root: &Path) -> Result<Vec<CoworkSummary>, CoworkError> {
         }
     }
     // Most-recently-active first.
-    out.sort_by(|a, b| b.last_activity_at.cmp(&a.last_activity_at));
+    out.sort_by_key(|b| std::cmp::Reverse(b.last_activity_at));
     Ok(out)
 }
 
@@ -278,9 +292,24 @@ pub struct CoworkListing {
 
 #[tauri::command]
 pub fn list_cowork_sessions() -> Result<CoworkListing, CoworkError> {
-    let root = cowork_root().ok_or(CoworkError::NotFound)?;
+    let root = match cowork_root() {
+        Some(r) => r,
+        None => {
+            log::warn!("list_cowork_sessions: no Cowork session directory found");
+            return Err(CoworkError::NotFound);
+        }
+    };
+    log::info!("list_cowork_sessions root={}", root.display());
     let sessions = walk_sessions(&root)?;
     let (pinned_order, pinned_order_warning) = read_pinned_order(&root);
+    if let Some(w) = pinned_order_warning.as_deref() {
+        log::warn!("pinned-order extraction warning: {}", w);
+    }
+    log::info!(
+        "list_cowork_sessions returned {} sessions, {} pinned",
+        sessions.len(),
+        pinned_order.len(),
+    );
     Ok(CoworkListing {
         sessions,
         pinned_order,
@@ -299,10 +328,7 @@ fn local_storage_dir(cowork_root: &Path) -> Option<PathBuf> {
             return Some(p);
         }
     }
-    let dir = cowork_root
-        .parent()?
-        .join("Local Storage")
-        .join("leveldb");
+    let dir = cowork_root.parent()?.join("Local Storage").join("leveldb");
     if dir.is_dir() {
         Some(dir)
     } else {
@@ -326,12 +352,7 @@ fn read_pinned_order(cowork_root: &Path) -> (Vec<String>, Option<String>) {
 
     let entries = match std::fs::read_dir(&dir) {
         Ok(e) => e,
-        Err(e) => {
-            return (
-                Vec::new(),
-                Some(format!("read {}: {}", dir.display(), e)),
-            )
-        }
+        Err(e) => return (Vec::new(), Some(format!("read {}: {}", dir.display(), e))),
     };
 
     // Among every leveldb data file (.ldb / .log) that contains a
@@ -460,9 +481,7 @@ fn extract_session_ids(body: &[u8]) -> Vec<String> {
         if &body[i..i + PREFIX.len()] == PREFIX {
             let id_start = i + KEEP_OFFSET;
             let id_end = id_start + ID_LEN;
-            if id_end <= body.len()
-                && is_uuid_form(&body[id_start + b"local_".len()..id_end])
-            {
+            if id_end <= body.len() && is_uuid_form(&body[id_start + b"local_".len()..id_end]) {
                 if let Ok(s) = std::str::from_utf8(&body[id_start..id_end]) {
                     out.push(s.to_string());
                 }
@@ -481,9 +500,9 @@ fn is_uuid_form(b: &[u8]) -> bool {
         && b[13] == b'-'
         && b[18] == b'-'
         && b[23] == b'-'
-        && b.iter().enumerate().all(|(i, &c)| {
-            matches!(i, 8 | 13 | 18 | 23) || c.is_ascii_hexdigit()
-        })
+        && b.iter()
+            .enumerate()
+            .all(|(i, &c)| matches!(i, 8 | 13 | 18 | 23) || c.is_ascii_hexdigit())
 }
 
 fn find_subseq(haystack: &[u8], needle: &[u8]) -> Option<usize> {
@@ -514,6 +533,10 @@ pub struct FailedUpdate {
 /// Returns per-path success/failure. Doesn't bail on the first error; tries
 /// each file independently.
 ///
+/// Every input path is canonicalized and bounds-checked against the
+/// resolved Cowork session root, so this command can't be coerced into
+/// flipping JSON booleans on arbitrary files elsewhere on disk.
+///
 /// Caveat: if Claude Desktop has the session open it may re-serialize the
 /// file on session close and overwrite our change. UI should warn.
 #[tauri::command]
@@ -521,16 +544,36 @@ pub fn set_cowork_archived(
     paths: Vec<PathBuf>,
     archived: bool,
 ) -> Result<ArchiveOutcome, CoworkError> {
+    let root = cowork_root().ok_or(CoworkError::NotFound)?;
     let mut updated = 0usize;
     let mut failed = Vec::new();
 
     for path in paths {
-        match write_archived_field(&path, archived) {
+        let safe = match path_safety::validate_under_root(&path, &root) {
+            Ok(p) => p,
+            Err(e) => {
+                log::warn!(
+                    "set_cowork_archived rejected {} (root {}): {}",
+                    path.display(),
+                    root.display(),
+                    e
+                );
+                failed.push(FailedUpdate {
+                    path,
+                    reason: e.to_string(),
+                });
+                continue;
+            }
+        };
+        match write_archived_field(&safe, archived) {
             Ok(()) => updated += 1,
-            Err(e) => failed.push(FailedUpdate {
-                path,
-                reason: e.to_string(),
-            }),
+            Err(e) => {
+                log::warn!("set_cowork_archived write failed {}: {}", safe.display(), e);
+                failed.push(FailedUpdate {
+                    path: safe,
+                    reason: e.to_string(),
+                });
+            }
         }
     }
 
@@ -576,7 +619,8 @@ mod tests {
 
     #[test]
     fn extract_session_ids_skips_garbage() {
-        let body = br#""cowork:local_not-a-uuid","cowork:local_929cd075-6f9a-4f2a-b27f-f31da43dcadf""#;
+        let body =
+            br#""cowork:local_not-a-uuid","cowork:local_929cd075-6f9a-4f2a-b27f-f31da43dcadf""#;
         let ids = extract_session_ids(body);
         assert_eq!(
             ids,
@@ -603,10 +647,7 @@ mod tests {
 
     #[test]
     fn wsl_cowork_candidates_builds_expected_paths() {
-        let tmp = std::env::temp_dir().join(format!(
-            "prmptr-wsl-test-{}",
-            std::process::id()
-        ));
+        let tmp = std::env::temp_dir().join(format!("prmptr-wsl-test-{}", std::process::id()));
         let users = tmp.join("Users");
         let camil = users.join("camil");
         std::fs::create_dir_all(&camil).unwrap();
@@ -622,19 +663,15 @@ mod tests {
         assert!(got[0].ends_with(
             "Users/camil/AppData/Local/Packages/Claude_pzs8sxrjxfjjc/LocalCache/Roaming/Claude/local-agent-mode-sessions"
         ));
-        assert!(got[1].ends_with(
-            "Users/camil/AppData/Roaming/Claude/local-agent-mode-sessions"
-        ));
+        assert!(got[1].ends_with("Users/camil/AppData/Roaming/Claude/local-agent-mode-sessions"));
 
         std::fs::remove_dir_all(&tmp).ok();
     }
 
     #[test]
     fn wsl_cowork_candidates_handles_missing_users_dir() {
-        let tmp = std::env::temp_dir().join(format!(
-            "prmptr-wsl-test-empty-{}",
-            std::process::id()
-        ));
+        let tmp =
+            std::env::temp_dir().join(format!("prmptr-wsl-test-empty-{}", std::process::id()));
         // Don't create anything under tmp — Users/ shouldn't exist.
         let got = wsl_cowork_candidates(&tmp);
         assert!(got.is_empty());

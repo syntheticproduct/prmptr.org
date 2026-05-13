@@ -52,20 +52,18 @@ debug = true
 overflow-checks = true
 
 [lints.rust]
+# Forbid `unsafe` outright — there's no reason a Tauri/IPC desktop app
+# needs raw pointers, and a regulated user will check.
 unsafe_code = "forbid"
-unreachable_pub = "warn"
-missing_debug_implementations = "warn"
 
 [lints.clippy]
-# Start with a sensible baseline; tighten as the codebase grows.
+# Clippy baseline — `all` covers correctness + style lints that are
+# almost always right. We don't enable `pedantic` because it generates
+# noise on patterns that are fine in a Tauri app (module name repetition,
+# missing must_use, etc.). Tighten by adding specific lints below.
 all = { level = "warn", priority = -1 }
-pedantic = { level = "warn", priority = -1 }
-# Known noisy lints under pedantic that aren't worth fighting in a Tauri app.
-module_name_repetitions = "allow"
-must_use_candidate = "allow"
-missing_errors_doc = "allow"
-missing_panics_doc = "allow"
-# Defaults to allow but worth catching — these correlate with real bugs.
+# Catch panics on hot paths. These default to allow in clippy; we
+# upgrade them to warn so a CI run with `-D warnings` will gate them.
 unwrap_used = "warn"
 expect_used = "warn"
 panic = "warn"

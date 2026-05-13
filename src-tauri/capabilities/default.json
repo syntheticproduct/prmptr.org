@@ -1,11 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "description": "enables the default permissions",
-  "windows": [
-    "main",
-    "global-settings"
-  ],
+  "identifier": "main",
+  "description": "Permissions granted to the main editor window. This is the only window that needs the file-picker dialog plugin (open/save dialogs); the global-settings window is scoped separately in global-settings.json.",
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "dialog:default"

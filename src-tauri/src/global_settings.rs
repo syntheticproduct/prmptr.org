@@ -362,21 +362,25 @@ pub fn open_global_settings_window(app: tauri::AppHandle) -> Result<(), String> 
     // Dev: hit the Next.js route directly so HMR works.
     // Release: load the bundled static export.
     #[cfg(debug_assertions)]
-    let url = tauri::WebviewUrl::External(
-        "http://localhost:3000/settings"
+    let url = {
+        // Hard-coded literal — parse cannot actually fail. If it ever did
+        // it'd be a compile-time-detectable typo, not a runtime concern.
+        #[allow(clippy::expect_used)]
+        let parsed = "http://localhost:3000/settings"
             .parse()
-            .expect("dev URL parse"),
-    );
+            .expect("dev URL parse");
+        tauri::WebviewUrl::External(parsed)
+    };
     #[cfg(not(debug_assertions))]
     let url = tauri::WebviewUrl::App("settings.html".into());
 
     tauri::WebviewWindowBuilder::new(&app, WINDOW_LABEL, url)
-    .title("Global Settings · prmptr.org")
-    .inner_size(1100.0, 850.0)
-    .min_inner_size(700.0, 500.0)
-    .resizable(true)
-    .build()
-    .map_err(|e| e.to_string())?;
+        .title("Global Settings · prmptr.org")
+        .inner_size(1100.0, 850.0)
+        .min_inner_size(700.0, 500.0)
+        .resizable(true)
+        .build()
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }

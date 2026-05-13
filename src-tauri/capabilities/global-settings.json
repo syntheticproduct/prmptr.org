@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "global-settings",
+  "description": "Permissions granted to the global-settings window. Scoped tighter than the main window: no file-picker dialog (the window only reads structured info via read_global_settings), so the dialog plugin is intentionally absent here. Add more permissions only when a real need surfaces.",
+  "windows": ["global-settings"],
+  "permissions": [
+    "core:default"
+  ]
+}

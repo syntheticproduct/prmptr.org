@@ -285,7 +285,15 @@ fn scan_root(
     let mut out: Vec<ClaudeSessionSummary> = Vec::new();
     let entries = match fs::read_dir(root) {
         Ok(e) => e,
-        Err(_) => return out,
+        Err(e) => {
+            // Missing archive root on first run is expected. Other errors
+            // (permission denied, etc.) are worth a warning so the user
+            // knows the listing is incomplete.
+            if e.kind() != std::io::ErrorKind::NotFound {
+                log::warn!("scan_root {} failed: {}", root.display(), e);
+            }
+            return out;
+        }
     };
     let archived = matches!(source, SessionSource::Archive);
 
@@ -380,7 +388,7 @@ pub fn list_sessions_impl(
         }
     }
 
-    out.sort_by(|a, b| b.when_unix_ms.cmp(&a.when_unix_ms));
+    out.sort_by_key(|b| std::cmp::Reverse(b.when_unix_ms));
     Ok(out)
 }
 
@@ -517,8 +525,7 @@ fn move_one_session(src: &Path, src_root: &Path, dst_root: &Path) -> Result<Path
     dst.push(rel);
 
     if let Some(parent) = dst.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|e| format!("create destination dir: {}", e))?;
+        fs::create_dir_all(parent).map_err(|e| format!("create destination dir: {}", e))?;
     }
 
     if dst.exists() {
@@ -565,7 +572,10 @@ fn move_one_session(src: &Path, src_root: &Path, dst_root: &Path) -> Result<Path
     }
 }
 
-fn move_sessions(paths: Vec<String>, unarchive: bool) -> Result<ArchiveResult, ClaudeSessionsError> {
+fn move_sessions(
+    paths: Vec<String>,
+    unarchive: bool,
+) -> Result<ArchiveResult, ClaudeSessionsError> {
     let active = active_root().ok_or(ClaudeSessionsError::NoHome)?;
     let archive = archive_root().ok_or(ClaudeSessionsError::NoHome)?;
 
@@ -596,10 +606,32 @@ fn move_sessions(paths: Vec<String>, unarchive: bool) -> Result<ArchiveResult, C
 
 #[tauri::command]
 pub fn archive_sessions(paths: Vec<String>) -> Result<ArchiveResult, ClaudeSessionsError> {
-    move_sessions(paths, false)
+    let result = move_sessions(paths, false)?;
+    log::info!(
+        "archive_sessions: moved={} failed={}",
+        result.moved.len(),
+        result.failed.len()
+    );
+    for f in &result.failed {
+        log::warn!("archive_sessions failed {}: {}", f.path.display(), f.reason);
+    }
+    Ok(result)
 }
 
 #[tauri::command]
 pub fn unarchive_sessions(paths: Vec<String>) -> Result<ArchiveResult, ClaudeSessionsError> {
-    move_sessions(paths, true)
+    let result = move_sessions(paths, true)?;
+    log::info!(
+        "unarchive_sessions: moved={} failed={}",
+        result.moved.len(),
+        result.failed.len()
+    );
+    for f in &result.failed {
+        log::warn!(
+            "unarchive_sessions failed {}: {}",
+            f.path.display(),
+            f.reason
+        );
+    }
+    Ok(result)
 }

@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-  prmptr_lib::run();
+    prmptr_lib::run();
 }

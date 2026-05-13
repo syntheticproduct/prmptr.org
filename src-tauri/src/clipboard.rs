@@ -98,8 +98,9 @@ fn native_clipboard_image_to_path() -> Result<ClipboardImageResult, ClipboardErr
     let width = img.width as u32;
     let height = img.height as u32;
     let buf: ImageBuffer<Rgba<u8>, Vec<u8>> =
-        ImageBuffer::from_raw(width, height, img.bytes.into_owned())
-            .ok_or_else(|| ClipboardError::Image("buffer length doesn't match dimensions".into()))?;
+        ImageBuffer::from_raw(width, height, img.bytes.into_owned()).ok_or_else(|| {
+            ClipboardError::Image("buffer length doesn't match dimensions".into())
+        })?;
     buf.save_with_format(&path, image::ImageFormat::Png)?;
 
     let bytes_written = std::fs::metadata(&path)?.len();
@@ -145,9 +146,7 @@ $size = (Get-Item $path).Length
     let output = Command::new("powershell.exe")
         .args(["-NoProfile", "-NonInteractive", "-Command", SCRIPT])
         .output()
-        .map_err(|e| {
-            ClipboardError::Clipboard(format!("powershell.exe not invocable: {e}"))
-        })?;
+        .map_err(|e| ClipboardError::Clipboard(format!("powershell.exe not invocable: {e}")))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

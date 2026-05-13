@@ -1,8 +1,23 @@
+// Tests use unwrap/expect/panic/eprintln liberally — that's idiomatic for
+// `cargo test`, where a panic IS the failure. The same lints stay warn in
+// production code.
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::print_stderr,
+        clippy::print_stdout,
+    )
+)]
+
 mod claude_sessions;
 mod clipboard;
 mod cowork;
 mod file;
 mod global_settings;
+mod path_safety;
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -21,21 +36,34 @@ pub struct InitialPath(Mutex<Option<PathBuf>>);
 
 #[tauri::command]
 fn take_initial_path(state: tauri::State<'_, InitialPath>) -> Option<PathBuf> {
-    state
-        .0
-        .lock()
-        .expect("InitialPath mutex poisoned")
-        .take()
+    // A poisoned mutex here means a prior thread panicked while holding it,
+    // which would already have been fatal — fail loud rather than silently
+    // returning None and dropping the user's CLI argument.
+    #[allow(clippy::expect_used)]
+    state.0.lock().expect("InitialPath mutex poisoned").take()
 }
 
 /// Parse argv to find the first positional argument that points at an
 /// existing file. Tolerant of cargo/tauri-dev injecting unrelated flags.
 fn extract_initial_path() -> Option<PathBuf> {
-    std::env::args()
+    let positional: Vec<PathBuf> = std::env::args()
         .skip(1)
         .filter(|a| !a.starts_with('-'))
         .map(PathBuf::from)
-        .find(|p| p.is_file())
+        .collect();
+    let found = positional.iter().find(|p| p.is_file()).cloned();
+    if found.is_none() && !positional.is_empty() {
+        // Track this — it almost always means the user double-clicked a
+        // dead/moved file association. Useful breadcrumb in the log.
+        log::warn!(
+            "no readable file in positional argv: {:?}",
+            positional
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+        );
+    }
+    found
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -61,15 +89,43 @@ pub fn run() {
             open_global_settings_window,
         ])
         .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+            // Dev: chatty stdout/stderr at info level.
+            // Release: write a rolling log under the platform log dir so a
+            // bug report has something to look at. We never log file
+            // contents — only paths, sizes, and error kinds.
+            let log_plugin = if cfg!(debug_assertions) {
+                tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Info)
+                    .build()
+            } else {
+                tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Warn)
+                    .targets([
+                        tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                            file_name: None,
+                        }),
+                        tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stderr),
+                    ])
+                    .max_file_size(2 * 1024 * 1024)
+                    .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+                    .build()
+            };
+            app.handle().plugin(log_plugin)?;
+            log::info!(
+                "prmptr {} started (rust {})",
+                env!("CARGO_PKG_VERSION"),
+                option_env!("RUSTC_VERSION").unwrap_or("unknown"),
+            );
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .map_or_else(
+            |e| {
+                // No useful recovery from "can't create main window"; emit
+                // a clear log line and exit non-zero rather than panicking.
+                log::error!("tauri runtime failed: {e}");
+                std::process::exit(1);
+            },
+            |()| {},
+        );
 }

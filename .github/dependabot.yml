@@ -1,0 +1,54 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/New_York
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - javascript
+    groups:
+      next:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+      types:
+        patterns:
+          - "@types/*"
+      tauri-js:
+        patterns:
+          - "@tauri-apps/*"
+      milkdown:
+        patterns:
+          - "@milkdown/*"
+
+  - package-ecosystem: cargo
+    directory: "/src-tauri"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/New_York
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - rust
+    groups:
+      tauri:
+        patterns:
+          - "tauri"
+          - "tauri-*"
+          - "tauri-plugin-*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
+      - github-actions
