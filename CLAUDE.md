@@ -1,7 +1,5 @@
 # prmptr.org — Claude session brief
 
-[`file://wsl.localhost/Ubuntu/home/camille/projects/prmptr.org/CLAUDE.md`](file://wsl.localhost/Ubuntu/home/camille/projects/prmptr.org/CLAUDE.md)
-
 Camille's single source of truth. Edit directly. Loads into every Claude Code session in this repo. All relevant memories are inlined below so nothing depends on auto-loading other files.
 
 ---
@@ -76,21 +74,35 @@ The roadmap is the north star, not a to-do list. Cherry-pick features per the co
 
 ## Standing rules (formerly memory entries)
 
-### File URL header — apply to EVERY file I write
+### Clickable file paths in CHAT OUTPUT — every file I name
 
-Every file I create — `CLAUDE.md`, brief docs, scratch notes, any markdown a human will revisit — must start with a clickable `file://wsl.localhost/Ubuntu/...` URL on its own line, pointing at the file's own absolute path. Format:
+Every file path I name in my reply to Camille must be a clickable markdown link with a `file://wsl.localhost/Ubuntu/<absolute-path>` target. This applies to **chat output only** — do NOT put URLs inside file contents.
 
+Format:
+
+```markdown
+[`src-tauri/src/cowork.rs`](file://wsl.localhost/Ubuntu/home/camille/projects/prmptr.org/.claude/worktrees/session1/src-tauri/src/cowork.rs)
 ```
-[`file://wsl.localhost/Ubuntu/home/camille/path/to/file.md`](file://wsl.localhost/Ubuntu/home/camille/path/to/file.md)
-```
 
-**Why:** Camille works on Windows with WSL underneath. The `file://wsl.localhost/Ubuntu/<absolute-path>` URL is clickable from Windows Markdown viewers and opens the file in his editor. Without it he has to copy-paste paths into a file picker. He's asked for this before.
+**Why:** Camille reads chat in a Windows terminal that supports clickable hyperlinks. Plain paths force copy-paste; `file://wsl.localhost/Ubuntu/...` URLs open the file directly in his default app.
 
-**Scope:** all markdown / text files I write. Skip for code (`.rs`, `.ts`, `.tsx`, `.css`) — there I use `file_path:line_number` references in chat instead.
+**Apply to:** every chat reply, every file mention (md, code, config). Include `path:line` references — visible text shows the line, link goes to the file.
+
+**Don't apply to:** file CONTENTS. Don't stuff URLs into CLAUDE.md or memory bodies. Don't apply to paths inside shell commands (`cd /path/...`).
+
+**Worktree paths:** when the same file exists in multiple worktrees, link to the one matching the current working directory of the session.
 
 ### Save when asked — same turn, no deferring
 
 When Camille says "save X under Y label so I can find it later" (or any equivalent — "remember this", "save this", "tag this", "label this"), I write `memory/<label>.md` (or update CLAUDE.md) in the same turn. No deferring, no skipping because "context will carry it." A dropped save = lost trust.
+
+### Commit WIP freely during worktree ops
+
+When syncing worktrees, rebasing, merging, or any op that needs a clean tree, commit dirty changes in-place as `WIP: <brief summary>` rather than asking what to do with them. Don't stash, don't skip.
+
+**Why:** Camille said verbatim "assume all work in progress can be saved to main. I take responsibility. I never leave work halfway done and if I do it's on me." Don't interrupt bulk worktree operations with "what about this dirty tree?" questions.
+
+**How:** During bulk ops, commit modified/untracked files as `WIP: <what was being worked on>`. Flag the WIP commits in the summary so he can amend or squash later if he wants.
 
 ### Worktree icons — copy before building
 
@@ -102,6 +114,38 @@ A fresh `.claude/worktrees/<name>/` will fail late in `cargo build` with `failed
 cp /home/camille/projects/prmptr.org/src-tauri/icons/*.png <worktree>/src-tauri/icons/
 cp -r /home/camille/projects/prmptr.org/src-tauri/icons/ios <worktree>/src-tauri/icons/
 ```
+
+### Numbered worktree sessions are intentional
+
+`.claude/worktrees/session1`, `session2`, `session3`, `session4` are **intentional parallel workspaces Camille uses for concurrent Claude Code sessions.** They are NOT clutter, NOT empty backups, NOT safe to delete. Even when one looks empty or sits behind main, leave it alone.
+
+Auto-generated-looking names (e.g. `elegant-singing-fairy`, `piped-drifting-hickey`) — different story, usually safe to clean.
+
+Catching a numbered session up to main is fine; deleting one is not unless Camille explicitly asks.
+
+### WSL dev setup — one-time fixes
+
+When running `npm run tauri dev` inside WSL2:
+
+1. **Install color emoji font** (else titles with emojis render as boxes):
+   ```
+   sudo apt install fonts-noto-color-emoji
+   ```
+   Verify: `fc-list | grep -i emoji` should show `NotoColorEmoji.ttf`. Affects WSL dev only — Windows production builds use WebView2 + Segoe UI Emoji and are fine.
+
+2. **Expected harmless console noise** under WSLg — don't chase these as bugs:
+   ```
+   libEGL warning: failed to get driver name for fd -1
+   MESA: error: ZINK: failed to choose pdev
+   libEGL warning: egl: failed to create dri2 screen
+   ```
+   These are GPU passthrough trying hardware GL, failing, falling back to software rendering (which works). If something else also breaks, that something-else is the real issue.
+
+### File ownership & redundancy preference
+
+- **CLAUDE.md is Camille's** — only edit it when asked. Don't auto-inject content. The Vercel `<!-- BEGIN:nextjs-agent-rules -->` block in `AGENTS.md` is the kind of auto-managed content he wants to AVOID — keep new content in CLAUDE.md, not AGENTS.md.
+- **Redundancy > deduplication** — Camille explicitly said "duplicated content can only help given that you 'forget' pretty consistently." Don't propose merging memory + CLAUDE.md. Don't dedupe.
+- **Mirror new memory into CLAUDE.md** — whenever a memory file is created (by me or by Camille's auto-memory linter), inline its substance into CLAUDE.md the same turn. Same source, two homes.
 
 ---
 
