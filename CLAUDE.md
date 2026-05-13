@@ -116,6 +116,40 @@ npm run tauri build -- --target x86_64-pc-windows-gnu --bundles nsis
 
 Artifacts land in `src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis/*.exe`. "Install locally" = launch that `.exe` from Windows (`cmd.exe /c start ...` from WSL works). No Rust on Windows; no MSVC build path. WSL has `x86_64-pc-windows-gnu` target installed and `/usr/bin/x86_64-w64-mingw32-gcc` + `/usr/bin/makensis`.
 
+### Trunk-based discipline across worktrees
+
+`main` on origin is the integration point. The four numbered worktrees each sit on their own branch (`worktree-1`–`worktree-4`) — those branches exist as ephemeral perches to satisfy git's "one worktree per branch" rule, not as meaningful divergent lines of work. After every push cycle a worktree branch is equal to main again.
+
+The flow, run from inside the numbered worktree:
+
+1. **Pull main first.** `git pull origin main` — with `pull.rebase=true` set, this rebases the worktree branch onto current `origin/main`. Start every micro-feature from fresh main.
+2. **Work and commit** on the worktree branch. Multiple small commits are fine.
+3. **Cheap sanity check** (see next rule).
+4. **Push the worktree branch's tip directly to main.** `git push origin HEAD:main` — `HEAD:main` means "take whatever this branch is pointing at and push it as `origin/main`." Lands as a fast-forward.
+
+If the push is rejected as non-fast-forward, another worktree got there first. Re-pull (`git pull origin main` rebases your work onto the new main) and re-push. Repeat until it lands.
+
+After a successful push, the worktree branch and `origin/main` are equal — no cleanup needed, no merge commits in history. The next micro-feature starts at step 1 again.
+
+### Sanity check before every push
+
+"Compiles" still ≠ "works" per the working principles, but a syntax/type break propagating to every other worktree's next pull is the bug to prevent. Run before every `git push origin HEAD:main`:
+
+- Frontend changes touched: `npx tsc --noEmit`
+- Rust changes touched: `cargo check` (from `src-tauri/`)
+- Either, when in doubt: both.
+
+Skip the full `npm run build` — too slow for the loop. The cheap check catches the breakage class that would poison other worktrees on their next pull. If the cheap check fails, fix and re-check before pushing. Never push a known-red tree.
+
+### Conflicts during pull/rebase — halt and alert
+
+If `git pull origin main` hits a rebase conflict:
+
+- **Truly trivial** (whitespace-only; import order; clearly compatible edits in unrelated parts of the same file): resolve it, continue the rebase, proceed. The bar for "trivial" is "I'd bet a coffee Camille would do it the same way."
+- **Anything else**: `git rebase --abort`. Print a loud, clear message in chat — which file, which hunk, which worktree, what was being worked on. Then stop and wait. Don't guess at semantic merges that involve code another worktree is touching.
+
+The existing WIP rule still applies for uncommitted work that blocks the pull — commit it as `WIP: <summary>` first.
+
 ### Worktree icons — copy before building
 
 `src-tauri/icons/*.png` and `src-tauri/icons/ios/` are gitignored (`.gitignore` line 50: `*.png`). Only `icon.icns`, `icon.ico`, and the Android XMLs are in git.
@@ -177,28 +211,3 @@ When running `npm run tauri dev` inside WSL2:
 ---
 
 @AGENTS.md
-
-[`file://wsl.localhost/Ubuntu/home/camille/projects/prmptr.org/CLAUDE.md`](file://wsl.localhost/Ubuntu/home/camille/projects/prmptr.org/CLAUDE.md)
-
-# Standing rules
-
-## Every file I write gets a clickable `file://` URL at the top
-
-Every markdown / doc / brief file I create or edit (memory entries, CLAUDE.md itself, scratch docs, anything user-facing on disk) must include a clickable `file://wsl.localhost/Ubuntu/...` URL on its own line near the top, pointing at the file's own absolute path.
-
-**Format** — markdown link with the URL as both text and href:
-
-```
-[`file://wsl.localhost/Ubuntu/home/camille/path/to/file.md`](file://wsl.localhost/Ubuntu/home/camille/path/to/file.md)
-```
-
-Place it directly under the H1 or frontmatter, on its own line.
-
-**Why:** Camille works on Windows over WSL. The `file://wsl.localhost/Ubuntu/<absolute-path>` URL renders as a clickable link in his Windows tools (Markdown viewers, Claude Desktop, etc.) and opens the file directly. Without it he has to copy-paste paths into a file picker.
-
-**Scope:**
-- Apply to: every `.md` / doc file written or edited via Write/Edit. If editing an existing markdown file that lacks the header URL, add it.
-- Skip: source code files (`.rs`, `.ts`, `.tsx`, `.css`, `.json`, etc.) — those use `file_path:line_number` references in chat replies instead.
-- Use the canonical main-checkout path when one exists, not a worktree-specific path.
-
-Mirrored from `memory/feedback_file_url_header.md` per the "mirror memories into CLAUDE.md" rule in `memory/feedback_file_truth_ownership.md`.
