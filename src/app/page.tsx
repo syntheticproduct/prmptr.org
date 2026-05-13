@@ -32,12 +32,28 @@ import {
 } from "@/lib/dev-defaults";
 
 const FRONTMATTER_MODE_KEY = "prmptr.frontmatter.mode";
+const VIEW_MODE_KEY = "prmptr.viewmode";
 
 function loadFrontmatterMode(): FrontmatterMode {
   if (typeof window === "undefined") return "hide";
   const v = window.localStorage.getItem(FRONTMATTER_MODE_KEY);
   if (v === "hide" || v === "code" || v === "properties") return v;
   return "hide";
+}
+
+function isViewMode(v: unknown): v is ViewMode {
+  return v === "single" || v === "cowork" || v === "folder" || v === "history";
+}
+
+// Recall the last view mode the user picked. localStorage wins; if empty,
+// fall back to the dev env override (NEXT_PUBLIC_PRMPTR_DEV_VIEW_MODE), then
+// "single" in production. Returns undefined when called pre-mount so the
+// initial render can stay SSR-safe.
+function loadViewMode(): ViewMode | undefined {
+  if (typeof window === "undefined") return undefined;
+  const v = window.localStorage.getItem(VIEW_MODE_KEY);
+  if (isViewMode(v)) return v;
+  return DEV_DEFAULT_VIEW_MODE ?? "single";
 }
 
 type ToolStatus =
@@ -101,15 +117,24 @@ export default function Home() {
   const [frontmatterMode, setFrontmatterMode] =
     useState<FrontmatterMode>("hide");
 
-  // Hydrate persisted frontmatter mode after mount to avoid SSR/client mismatch.
+  // Hydrate persisted frontmatter + view mode after mount to avoid SSR/client
+  // mismatch. The initial useState value is a safe default; localStorage takes
+  // over once we know we're in the browser.
   useEffect(() => {
     setFrontmatterMode(loadFrontmatterMode());
+    const persistedView = loadViewMode();
+    if (persistedView) setViewMode(persistedView);
   }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(FRONTMATTER_MODE_KEY, frontmatterMode);
   }, [frontmatterMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(VIEW_MODE_KEY, viewMode);
+  }, [viewMode]);
 
   // Split current text into raw frontmatter (preserved verbatim) and body.
   // Body is what the editor sees; reassembly on edit keeps frontmatter intact.
