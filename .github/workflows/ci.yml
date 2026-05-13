@@ -67,7 +67,7 @@ jobs:
             pkgconf
 
       - name: Cargo registry & build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index
@@ -105,7 +105,7 @@ jobs:
       - name: Rust toolchain (rust-toolchain.toml pins it)
         run: rustup show
       - name: Cache cargo-audit binary
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cargo/bin/cargo-audit
           key: ${{ runner.os }}-cargo-audit-${{ hashFiles('rust-toolchain.toml') }}
