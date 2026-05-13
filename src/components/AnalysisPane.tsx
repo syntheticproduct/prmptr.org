@@ -26,7 +26,10 @@ export function AnalysisPane() {
   const [sub, setSub] = useState<Sub>("analyze");
   const current = SUBS.find((s) => s.value === sub)!;
   return (
-    <aside className="flex h-full w-[348px] flex-shrink-0 flex-col border-l border-[var(--border)] bg-[var(--surface)]">
+    <aside
+      aria-label="Prompt analysis"
+      className="flex h-full w-[348px] flex-shrink-0 flex-col border-l border-[var(--border)] bg-[var(--surface)]"
+    >
       <div className="flex flex-shrink-0 items-center gap-0.5 border-b border-[var(--border)] px-2 py-1.5">
         {SUBS.map((s) => {
           const active = s.value === sub;

@@ -203,6 +203,7 @@ export function FolderTreePane({ onOpenFile, selectedPath, initialRoot }: Props)
 
   return (
     <aside
+      aria-label="Folder tree"
       style={{ width }}
       className="relative flex flex-shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg)] text-xs"
     >

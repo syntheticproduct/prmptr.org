@@ -88,9 +88,11 @@ await test("Switching view mode to Single hides the FolderTreePane", async () =>
   await vmBtn.first().click();
   await page.locator('[role="menuitemradio"]', { hasText: "Single view" }).click();
   await page.waitForTimeout(100);
-  // FolderTreePane root contains a header with "No folder" or the basename.
-  // Easier signal: its <aside> element. After switching, the aside should be gone.
-  await assert.equal(await page.locator("aside").count(), 0, "FolderTreePane should be gone");
+  await assert.equal(
+    await page.locator('aside[aria-label="Folder tree"]').count(),
+    0,
+    "FolderTreePane should be gone",
+  );
 });
 
 await test("Frontmatter mode toggle opens and is clickable", async () => {
