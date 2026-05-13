@@ -50,6 +50,8 @@ src-tauri/gen/
 /tmp/
 *.png
 !landing/**/*.png
+!src-tauri/icons/**/*.png
+!public/**/*.png
 playwright-report/
 
 # local IDE / agent

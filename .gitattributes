@@ -1,0 +1,21 @@
+# Force LF line endings on all text files so a Windows checkout doesn't
+# trip rustfmt's `newline_style = "Unix"` (src-tauri/rustfmt.toml). Without
+# this, Windows git default `core.autocrlf=true` rewrites .rs files to
+# CRLF on checkout and `cargo fmt --check` fails in CI.
+*           text=auto eol=lf
+
+# Binary assets — never normalize.
+*.png       binary
+*.ico       binary
+*.icns      binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.webp      binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.otf       binary
+*.zip       binary
+*.gz        binary
+*.tar       binary

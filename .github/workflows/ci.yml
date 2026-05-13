@@ -94,16 +94,25 @@ jobs:
     name: Dependency audit (advisory-only)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
+    # Advisory: surface findings without gating the run. The `|| true` on
+    # each step keeps the job green; check the log for actual advisories.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: npm
+      - name: Rust toolchain (rust-toolchain.toml pins it)
+        run: rustup show
+      - name: Cache cargo-audit binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: ${{ runner.os }}-cargo-audit-${{ hashFiles('rust-toolchain.toml') }}
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked --quiet || true
       - name: npm audit (production only)
         run: npm audit --omit=dev || true
-      - name: cargo-audit
-        uses: rustsec/audit-check@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo audit
+        working-directory: src-tauri
+        run: cargo audit || true
