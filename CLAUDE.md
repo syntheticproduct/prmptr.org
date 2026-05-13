@@ -81,7 +81,7 @@ Every file path I name in my reply to Camille must be a clickable markdown link 
 Format:
 
 ```markdown
-[`src-tauri/src/cowork.rs`](file://wsl.localhost/Ubuntu/home/camille/projects/prmptr.org/.claude/worktrees/session1/src-tauri/src/cowork.rs)
+[`src-tauri/src/cowork.rs`](file://wsl.localhost/Ubuntu/home/camille/projects/prmptr.org/.claude/worktrees/worktree1/src-tauri/src/cowork.rs)
 ```
 
 **Why:** Camille reads chat in a Windows terminal that supports clickable hyperlinks. Plain paths force copy-paste; `file://wsl.localhost/Ubuntu/...` URLs open the file directly in his default app.
@@ -115,13 +115,13 @@ cp /home/camille/projects/prmptr.org/src-tauri/icons/*.png <worktree>/src-tauri/
 cp -r /home/camille/projects/prmptr.org/src-tauri/icons/ios <worktree>/src-tauri/icons/
 ```
 
-### Numbered worktree sessions are intentional
+### Numbered worktrees are intentional
 
-`.claude/worktrees/session1`, `session2`, `session3`, `session4` are **intentional parallel workspaces Camille uses for concurrent Claude Code sessions.** They are NOT clutter, NOT empty backups, NOT safe to delete. Even when one looks empty or sits behind main, leave it alone.
+`.claude/worktrees/worktree1`, `worktree2`, `worktree3`, `worktree4` are **intentional parallel workspaces Camille uses for concurrent Claude Code sessions.** They are NOT clutter, NOT empty backups, NOT safe to delete. Even when one looks empty or sits behind main, leave it alone.
 
 Auto-generated-looking names (e.g. `elegant-singing-fairy`, `piped-drifting-hickey`) — different story, usually safe to clean.
 
-Catching a numbered session up to main is fine; deleting one is not unless Camille explicitly asks.
+Catching a numbered worktree up to main is fine; deleting one is not unless Camille explicitly asks.
 
 ### WSL dev setup — one-time fixes
 
