@@ -12,6 +12,7 @@ import {
   pickFolderToOpen,
   type DirChild,
 } from "@/lib/tauri-fs";
+import { formatError } from "@/lib/errors";
 
 const ROOT_STORAGE_KEY = "prmptr.folder-pane.root";
 const WIDTH_STORAGE_KEY = "prmptr.folder-pane.width";
@@ -34,13 +35,6 @@ type Props = {
 
 function basename(p: string): string {
   return p.split(/[\\/]/).filter(Boolean).pop() || p;
-}
-
-function formatError(e: unknown): string {
-  if (e && typeof e === "object" && "message" in e) {
-    return String((e as { message: unknown }).message);
-  }
-  return String(e);
 }
 
 export function FolderTreePane({ onOpenFile, selectedPath, initialRoot }: Props) {

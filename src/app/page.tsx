@@ -23,6 +23,7 @@ import {
 import { FrontmatterPanel } from "@/components/FrontmatterPanel";
 import { joinFrontmatter, parseFrontmatter } from "@/lib/frontmatter";
 import type { CoworkSummary } from "@/lib/tauri-fs";
+import { formatError } from "@/lib/errors";
 import {
   DEV_DEFAULT_FILE,
   DEV_DEFAULT_FOLDER_ROOT,
@@ -46,13 +47,6 @@ type ToolStatus =
 
 function basename(path: string): string {
   return path.split(/[\\/]/).pop() || path;
-}
-
-function formatError(e: unknown): string {
-  if (e && typeof e === "object" && "message" in e) {
-    return String((e as { message: unknown }).message);
-  }
-  return String(e);
 }
 
 const toolbarBtn =

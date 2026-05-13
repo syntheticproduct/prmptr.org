@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "WYSIWYG editor for Claude prompts"
 authors = ["Camille Lambert"]
 license = "MIT"
-repository = ""
+repository = "https://github.com/syntheticproduct/prmptr.org"
+homepage = "https://github.com/syntheticproduct/prmptr.org"
+readme = "../README.md"
+keywords = ["tauri", "markdown", "editor", "llm", "prompt-engineering"]
+categories = ["text-editors", "gui"]
 edition = "2021"
 rust-version = "1.77.2"
 
@@ -27,3 +31,46 @@ tauri-plugin-dialog = "2"
 thiserror = "2"
 arboard = { version = "3", features = ["wayland-data-control"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
+
+# Release profile tuned for desktop distribution: small binary, no debug
+# unwind tables, full link-time optimization. Trades build time for size and
+# startup speed — both matter for a desktop app users install once and run
+# every day.
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+incremental = false
+
+# Dev profile: keep incremental compilation + checked overflow for catching
+# bugs early. Mirrors what `cargo build` already does, just made explicit.
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true
+
+[lints.rust]
+unsafe_code = "forbid"
+unreachable_pub = "warn"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+# Start with a sensible baseline; tighten as the codebase grows.
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Known noisy lints under pedantic that aren't worth fighting in a Tauri app.
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+# Defaults to allow but worth catching — these correlate with real bugs.
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+dbg_macro = "warn"
+print_stdout = "warn"
+print_stderr = "warn"

@@ -9,6 +9,7 @@ import {
   type ClaudeMessageBrief,
   type ClaudeSessionSummary,
 } from "@/lib/tauri-fs";
+import { formatError } from "@/lib/errors";
 
 type Filter = "active" | "archived" | "all";
 
@@ -48,13 +49,6 @@ function fmtSize(n: number): string {
 
 function shortId(id: string): string {
   return id.slice(0, 8);
-}
-
-function formatError(e: unknown): string {
-  if (e && typeof e === "object" && "message" in e) {
-    return String((e as { message: unknown }).message);
-  }
-  return String(e);
 }
 
 function fmtTimestamp(iso: string | null): string {

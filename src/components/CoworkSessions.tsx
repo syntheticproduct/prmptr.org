@@ -6,6 +6,7 @@ import {
   setCoworkArchived,
   type CoworkSummary,
 } from "@/lib/tauri-fs";
+import { formatError } from "@/lib/errors";
 
 type LoadState =
   | { kind: "loading" }
@@ -33,13 +34,6 @@ function fmtDate(ms: number | null): string {
 function fmtAbs(ms: number | null): string {
   if (!ms) return "unknown";
   return new Date(ms).toLocaleString();
-}
-
-function formatError(e: unknown): string {
-  if (e && typeof e === "object" && "message" in e) {
-    return String((e as { message: unknown }).message);
-  }
-  return String(e);
 }
 
 function lastPathSegment(p: string | null, n = 2): string {

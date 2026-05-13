@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { formatError } from "@/lib/errors";
 
 type DirChild = {
   name: string;
@@ -56,13 +57,6 @@ function relTime(ms: number | null): string {
   const d = Math.floor(h / 24);
   if (d < 30) return `${d}d ago`;
   return new Date(ms).toLocaleDateString();
-}
-
-function formatError(e: unknown): string {
-  if (e && typeof e === "object" && "message" in e) {
-    return String((e as { message: unknown }).message);
-  }
-  return String(e);
 }
 
 export default function GlobalSettingsPage() {

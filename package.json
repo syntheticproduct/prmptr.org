@@ -2,11 +2,29 @@
   "name": "prmptr",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "homepage": "https://github.com/syntheticproduct/prmptr.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/syntheticproduct/prmptr.org.git"
+  },
+  "bugs": {
+    "url": "https://github.com/syntheticproduct/prmptr.org/issues"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "node --test src/lib/*.test.ts",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:e2e": "node tests/e2e/run-all.mjs",
+    "check": "npm run typecheck && npm run lint",
+    "version:bump": "node scripts/bump-version.mjs",
     "tauri": "tauri"
   },
   "dependencies": {

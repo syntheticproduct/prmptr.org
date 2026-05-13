@@ -29,6 +29,12 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Camille Lambert",
+    "homepage": "https://github.com/syntheticproduct/prmptr.org",
+    "copyright": "Copyright © 2026 Camille Lambert",
+    "category": "DeveloperTool",
+    "shortDescription": "WYSIWYG markdown editor for LLM prompt engineers.",
+    "longDescription": "prmptr.org is a desktop companion for prompt engineering: write, version, and analyse reusable LLM prompts. XML tags and {{variables}} are first-class citizens, byte-perfect markdown round-trip via remark, structural awareness, and a Claude Code session browser. MIT-licensed open source.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -52,6 +58,24 @@
         "mimeType": "text/plain"
       }
     ],
+    "windows": {
+      "wix": {
+        "upgradeCode": "771da6f7-0dcc-4ee0-9e02-f798df3f7bf5"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      },
+      "allowDowngrades": false
+    },
+    "linux": {
+      "deb": {
+        "section": "editors"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }
