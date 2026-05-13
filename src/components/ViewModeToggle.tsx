@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export type ViewMode = "single" | "cowork" | "folder" | "history";
+export type ViewMode = "single" | "folder";
 
 const OPTIONS: { value: ViewMode; label: string; hint: string }[] = [
   {
@@ -11,19 +11,9 @@ const OPTIONS: { value: ViewMode; label: string; hint: string }[] = [
     hint: "Default editor on one document",
   },
   {
-    value: "cowork",
-    label: "Cowork view",
-    hint: "Browse Claude Desktop Cowork sessions inline",
-  },
-  {
     value: "folder",
     label: "Folder view",
-    hint: "Browse a folder of prompts (coming soon)",
-  },
-  {
-    value: "history",
-    label: "History view",
-    hint: "Recent prompts from ~/.claude/history.jsonl (coming soon)",
+    hint: "Browse a folder of prompts in a left pane",
   },
 ];
 

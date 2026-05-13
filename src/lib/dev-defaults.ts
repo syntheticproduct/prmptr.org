@@ -32,7 +32,7 @@ export const DEV_DEFAULT_FILE: string | null = devEnv(
 
 function devViewMode(): ViewMode | null {
   const raw = devEnv("NEXT_PUBLIC_PRMPTR_DEV_VIEW_MODE");
-  if (raw === "single" || raw === "cowork" || raw === "folder" || raw === "history") {
+  if (raw === "single" || raw === "folder") {
     return raw;
   }
   return isDev ? "folder" : null;

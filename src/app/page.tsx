@@ -14,7 +14,8 @@ import { MilkdownEditor } from "@/components/MilkdownEditor";
 import { FileMenu } from "@/components/FileMenu";
 import { ToolsMenu } from "@/components/ToolsMenu";
 import { CoworkSessions } from "@/components/CoworkSessions";
-import { SessionExplorer } from "@/components/SessionExplorer";
+import { ClaudeCodeTab } from "@/components/ClaudeCodeTab";
+import { AnalysisPane } from "@/components/AnalysisPane";
 import { ViewModeToggle, type ViewMode } from "@/components/ViewModeToggle";
 import { FolderTreePane } from "@/components/FolderTreePane";
 import {
@@ -32,7 +33,17 @@ import {
 } from "@/lib/dev-defaults";
 
 const FRONTMATTER_MODE_KEY = "prmptr.frontmatter.mode";
+const ACTIVE_TAB_KEY = "prmptr.activeTab";
 const VIEW_MODE_KEY = "prmptr.viewmode";
+
+type RootTab = "pe" | "md" | "cowork" | "code";
+
+const ROOT_TABS: { value: RootTab; label: string }[] = [
+  { value: "pe", label: "Prompt Engineering" },
+  { value: "md", label: "Markdown Editing" },
+  { value: "cowork", label: "Claude Cowork" },
+  { value: "code", label: "Claude Code" },
+];
 
 function loadFrontmatterMode(): FrontmatterMode {
   if (typeof window === "undefined") return "hide";
@@ -41,14 +52,20 @@ function loadFrontmatterMode(): FrontmatterMode {
   return "hide";
 }
 
+function loadActiveTab(): RootTab {
+  if (typeof window === "undefined") return "pe";
+  const v = window.localStorage.getItem(ACTIVE_TAB_KEY);
+  if (v === "pe" || v === "md" || v === "cowork" || v === "code") return v;
+  return "pe";
+}
+
 function isViewMode(v: unknown): v is ViewMode {
-  return v === "single" || v === "cowork" || v === "folder" || v === "history";
+  return v === "single" || v === "folder";
 }
 
 // Recall the last view mode the user picked. localStorage wins; if empty,
-// fall back to the dev env override (NEXT_PUBLIC_PRMPTR_DEV_VIEW_MODE), then
-// "single" in production. Returns undefined when called pre-mount so the
-// initial render can stay SSR-safe.
+// fall back to the dev env override, then "single" in production. Returns
+// undefined when called pre-mount so the initial render can stay SSR-safe.
 function loadViewMode(): ViewMode | undefined {
   if (typeof window === "undefined") return undefined;
   const v = window.localStorage.getItem(VIEW_MODE_KEY);
@@ -109,19 +126,17 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [toolStatus, setToolStatus] = useState<ToolStatus>({ kind: "idle" });
-  const [coworkOpen, setCoworkOpen] = useState(false);
-  const [sessionExplorerOpen, setSessionExplorerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<RootTab>("pe");
   const [viewMode, setViewMode] = useState<ViewMode>(
     DEV_DEFAULT_VIEW_MODE ?? "single",
   );
   const [frontmatterMode, setFrontmatterMode] =
     useState<FrontmatterMode>("hide");
 
-  // Hydrate persisted frontmatter + view mode after mount to avoid SSR/client
-  // mismatch. The initial useState value is a safe default; localStorage takes
-  // over once we know we're in the browser.
+  // Hydrate persisted UI state after mount to avoid SSR/client mismatch.
   useEffect(() => {
     setFrontmatterMode(loadFrontmatterMode());
+    setActiveTab(loadActiveTab());
     const persistedView = loadViewMode();
     if (persistedView) setViewMode(persistedView);
   }, []);
@@ -130,6 +145,11 @@ export default function Home() {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(FRONTMATTER_MODE_KEY, frontmatterMode);
   }, [frontmatterMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -210,9 +230,6 @@ export default function Home() {
   }, []);
 
   // FolderTreePane bypasses handleOpen, so guard at the call site here.
-  // Startup CLI-arg auto-load and File→Open already pass through their own
-  // discard checks (or have nothing to discard), so loadFromPath itself
-  // stays guard-free.
   const openFromTree = useCallback(
     async (path: string) => {
       if (!confirmDiscard()) return;
@@ -249,6 +266,7 @@ export default function Home() {
       setSavedContent(null);
       setError(null);
       setEditorEpoch((n) => n + 1);
+      setActiveTab("pe");
       return true;
     },
     [confirmDiscard],
@@ -282,6 +300,7 @@ export default function Home() {
     setSavedContent(null);
     setError(null);
     setEditorEpoch((n) => n + 1);
+    if (activeTab !== "pe" && activeTab !== "md") setActiveTab("pe");
   };
 
   const handleOpen = async () => {
@@ -289,7 +308,10 @@ export default function Home() {
     setBusy("open");
     try {
       const path = await pickFileToOpen();
-      if (path) await loadFromPath(path);
+      if (path) {
+        await loadFromPath(path);
+        if (activeTab !== "pe" && activeTab !== "md") setActiveTab("pe");
+      }
     } finally {
       setBusy(null);
     }
@@ -349,7 +371,7 @@ export default function Home() {
   };
 
   // Keyboard shortcuts: Cmd/Ctrl+S = save, +Shift = save as, +O = open,
-  // +N = new, +Q = exit.
+  // +N = new, +Q = exit, +1..4 = switch root tab.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
@@ -373,16 +395,23 @@ export default function Home() {
       } else if (key === ",") {
         e.preventDefault();
         void handleSettings();
+      } else if (key >= "1" && key <= "4") {
+        e.preventDefault();
+        const idx = Number(key) - 1;
+        const next = ROOT_TABS[idx];
+        if (next) setActiveTab(next.value);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openPath, savedContent, text, dirty]);
+  }, [openPath, savedContent, text, dirty, activeTab]);
+
+  const isEditorTab = activeTab === "pe" || activeTab === "md";
 
   return (
     <main className="flex h-dvh flex-col bg-[var(--bg)] text-[var(--text)]">
-      <header className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
+      <header className="prmptr-chrome flex flex-shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2">
         <div className="flex items-center gap-3">
           <span className="font-mono text-sm font-medium tracking-tight">
             prmptr<span className="text-[var(--accent)]">.org</span>
@@ -400,16 +429,16 @@ export default function Home() {
                   busy={busy}
                   canSave={Boolean(text) || Boolean(openPath)}
                 />
-                <ToolsMenu
-                  onStatus={setToolStatus}
-                  onOpenCowork={() => setCoworkOpen(true)}
-                  onOpenSessionExplorer={() => setSessionExplorerOpen(true)}
-                />
-                <ViewModeToggle value={viewMode} onChange={setViewMode} />
-                <FrontmatterModeToggle
-                  value={frontmatterMode}
-                  onChange={setFrontmatterMode}
-                />
+                <ToolsMenu onStatus={setToolStatus} />
+                {isEditorTab && (
+                  <>
+                    <ViewModeToggle value={viewMode} onChange={setViewMode} />
+                    <FrontmatterModeToggle
+                      value={frontmatterMode}
+                      onChange={setFrontmatterMode}
+                    />
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -433,71 +462,92 @@ export default function Home() {
         </div>
       </header>
 
+      <nav
+        role="tablist"
+        aria-label="App sections"
+        className="prmptr-chrome flex flex-shrink-0 items-end gap-0 border-b border-[var(--border)] bg-[var(--bg)] px-3"
+      >
+        {ROOT_TABS.map((t) => {
+          const active = t.value === activeTab;
+          return (
+            <button
+              key={t.value}
+              role="tab"
+              aria-selected={active}
+              onClick={() => setActiveTab(t.value)}
+              className={`relative px-3 py-2 text-xs font-medium transition ${
+                active
+                  ? "text-[var(--text)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-dim)]"
+              }`}
+            >
+              {t.label}
+              {active && (
+                <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-t bg-[var(--accent)]" />
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
       <div className="flex min-h-0 flex-1">
-        {viewMode === "folder" && (
-          <FolderTreePane
-            onOpenFile={openFromTree}
-            selectedPath={openPath}
-            initialRoot={DEV_DEFAULT_FOLDER_ROOT}
-          />
-        )}
-
-        {(viewMode === "single" || viewMode === "folder") && (
-          <div
-            className={`prmptr-editor-host relative min-h-0 flex-1 overflow-y-auto transition ${
-              dragActive ? "ring-2 ring-inset ring-[var(--accent)]" : ""
-            }`}
-            onDragEnter={(e) => {
-              e.preventDefault();
-              if (e.dataTransfer.types.includes("Files")) setDragActive(true);
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = "copy";
-              if (e.dataTransfer.types.includes("Files")) setDragActive(true);
-            }}
-            onDragLeave={(e) => {
-              if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
-              setDragActive(false);
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragActive(false);
-              const file = e.dataTransfer.files?.[0];
-              if (file) void loadFromDroppedFile(file);
-            }}
-          >
-            <FrontmatterPanel mode={frontmatterMode} frontmatter={frontmatter} />
-            <MilkdownEditor
-              key={editorEpoch}
-              defaultValue={body}
-              onChange={(newBody) => setText(joinFrontmatter(fmPrefix, newBody))}
-            />
-            {dragActive && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[var(--bg)]/60 text-sm text-[var(--text-dim)]">
-                Drop file to open
-              </div>
+        {isEditorTab && (
+          <>
+            {viewMode === "folder" && (
+              <FolderTreePane
+                onOpenFile={openFromTree}
+                selectedPath={openPath}
+                initialRoot={DEV_DEFAULT_FOLDER_ROOT}
+              />
             )}
-          </div>
+            <div
+              className={`prmptr-editor-host relative min-h-0 flex-1 overflow-y-auto transition ${
+                dragActive ? "ring-2 ring-inset ring-[var(--accent)]" : ""
+              }`}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.types.includes("Files")) setDragActive(true);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "copy";
+                if (e.dataTransfer.types.includes("Files")) setDragActive(true);
+              }}
+              onDragLeave={(e) => {
+                if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+                setDragActive(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragActive(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) void loadFromDroppedFile(file);
+              }}
+            >
+              <FrontmatterPanel mode={frontmatterMode} frontmatter={frontmatter} />
+              <MilkdownEditor
+                key={editorEpoch}
+                defaultValue={body}
+                onChange={(newBody) => setText(joinFrontmatter(fmPrefix, newBody))}
+              />
+              {dragActive && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[var(--bg)]/60 text-sm text-[var(--text-dim)]">
+                  Drop file to open
+                </div>
+              )}
+            </div>
+            {activeTab === "pe" && <AnalysisPane />}
+          </>
         )}
 
-        {(viewMode === "cowork" || viewMode === "history") && (
-          <div className="flex min-h-0 flex-1 items-center justify-center bg-[var(--bg)] text-sm text-[var(--text-muted)]">
-            <div className="max-w-md text-center">
-              <div className="mb-2 font-mono text-xs uppercase tracking-wider text-[var(--text-faint)]">
-                {viewMode} view
-              </div>
-              <div className="text-[var(--text-dim)]">
-                {viewMode === "cowork"
-                  ? "Inline Cowork browser — coming soon. For now, use Tools → Browse Cowork sessions."
-                  : "History view — coming soon. Recent prompts from ~/.claude/history.jsonl."}
-              </div>
-            </div>
-          </div>
+        {activeTab === "cowork" && (
+          <CoworkSessions onSelect={handleCoworkSelect} />
         )}
+
+        {activeTab === "code" && <ClaudeCodeTab />}
       </div>
 
-      <footer className="flex flex-shrink-0 items-center justify-between border-t border-[var(--border)] px-3 py-1 text-[10px] text-[var(--text-muted)]">
+      <footer className="prmptr-chrome flex flex-shrink-0 items-center justify-between border-t border-[var(--border)] px-3 py-1 text-[10px] text-[var(--text-muted)]">
         <span>
           {stats.chars.toLocaleString()} chars · {stats.lines.toLocaleString()} lines
         </span>
@@ -515,17 +565,6 @@ export default function Home() {
           <span>not saved</span>
         )}
       </footer>
-
-      <CoworkSessions
-        open={coworkOpen}
-        onClose={() => setCoworkOpen(false)}
-        onSelect={handleCoworkSelect}
-      />
-
-      <SessionExplorer
-        open={sessionExplorerOpen}
-        onClose={() => setSessionExplorerOpen(false)}
-      />
     </main>
   );
 }

@@ -28,10 +28,7 @@ type LoadState =
   | { kind: "ok"; sessions: ClaudeSessionSummary[] }
   | { kind: "err"; message: string };
 
-type Props = {
-  open: boolean;
-  onClose: () => void;
-};
+// Inline panel — rendered inside the Claude Code root tab.
 
 function fmtWhen(ms: number): string {
   if (!ms) return "—";
@@ -121,7 +118,7 @@ function SessionTailPreview({ tail }: { tail: TailState | undefined }) {
   );
 }
 
-export function SessionExplorer({ open, onClose }: Props) {
+export function SessionExplorer() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [filter, setFilter] = useState<Filter>("active");
   const [busyPath, setBusyPath] = useState<string | null>(null);
@@ -174,10 +171,9 @@ export function SessionExplorer({ open, onClose }: Props) {
   );
 
   useEffect(() => {
-    if (!open) return;
     setOpError(null);
     refresh(filter);
-  }, [open, filter, refresh]);
+  }, [filter, refresh]);
 
   const handleArchive = useCallback(
     async (path: string, action: "archive" | "unarchive") => {
@@ -218,29 +214,8 @@ export function SessionExplorer({ open, onClose }: Props) {
     [expandedPath, ensureTail],
   );
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Session explorer"
-      className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-6"
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="flex max-h-full w-full max-w-[1200px] flex-col overflow-hidden rounded-lg bg-[var(--surface)] shadow-2xl ring-1 ring-[var(--border-strong)]"
-      >
+    <div className="flex min-h-0 flex-1 flex-col bg-[var(--surface)]">
         <header className="flex flex-shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-2">
           <h2 className="font-mono text-sm text-[var(--text)]">
             Session explorer
@@ -252,13 +227,6 @@ export function SessionExplorer({ open, onClose }: Props) {
           </h2>
           <div className="flex items-center gap-3">
             <FilterToggle value={filter} onChange={setFilter} />
-            <button
-              onClick={onClose}
-              className="rounded-md px-2 py-1 text-xs text-[var(--text-dim)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
-              aria-label="Close"
-            >
-              ✕
-            </button>
           </div>
         </header>
 
@@ -402,15 +370,14 @@ export function SessionExplorer({ open, onClose }: Props) {
             </table>
           )}
         </div>
-      </div>
 
-      {hover && (
-        <SessionHoverCard
-          session={hover.session}
-          rect={hover.rect}
-          tail={tails.get(hover.path)}
-        />
-      )}
+        {hover && (
+          <SessionHoverCard
+            session={hover.session}
+            rect={hover.rect}
+            tail={tails.get(hover.path)}
+          />
+        )}
     </div>
   );
 }

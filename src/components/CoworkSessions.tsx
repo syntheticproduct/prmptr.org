@@ -42,15 +42,12 @@ function lastPathSegment(p: string | null, n = 2): string {
 }
 
 type Props = {
-  open: boolean;
-  onClose: () => void;
   // Returns true if the session was loaded; false if the caller bailed
-  // (e.g. the user cancelled the "discard unsaved changes?" prompt). The
-  // modal stays open on false so the user can retry without reopening.
+  // (e.g. the user cancelled the "discard unsaved changes?" prompt).
   onSelect: (s: CoworkSummary) => boolean;
 };
 
-export function CoworkSessions({ open, onClose, onSelect }: Props) {
+export function CoworkSessions({ onSelect }: Props) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -76,26 +73,10 @@ export function CoworkSessions({ open, onClose, onSelect }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!open) {
-      setQuery("");
-      setStarredOnly(false);
-      setShowArchived(false);
-      setSelected(new Set());
-      setBusy(null);
-      return;
-    }
     refresh();
-  }, [open, refresh]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    setTimeout(() => inputRef.current?.focus(), 50);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    const t = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, [refresh]);
 
   const sorted = useMemo(() => {
     if (state.kind !== "ok") return [];
@@ -246,8 +227,6 @@ export function CoworkSessions({ open, onClose, onSelect }: Props) {
     [selectedSummaries, refresh],
   );
 
-  if (!open) return null;
-
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
@@ -257,7 +236,7 @@ export function CoworkSessions({ open, onClose, onSelect }: Props) {
       <tr
         key={s.sessionId}
         onClick={() => {
-          if (onSelect(s)) onClose();
+          onSelect(s);
         }}
         className={`cursor-pointer border-b border-[var(--border)] transition ${
           isSel ? "bg-[var(--accent-tint)]" : "hover:bg-[var(--surface-2)]"
@@ -324,39 +303,25 @@ export function CoworkSessions({ open, onClose, onSelect }: Props) {
   );
 
   return (
-    <div
-      className="fixed inset-0 z-30 flex items-start justify-center bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="mt-[5vh] flex max-h-[90vh] w-[min(1200px,95vw)] flex-col overflow-hidden rounded-lg bg-[var(--surface)] shadow-2xl ring-1 ring-[var(--border-strong)]"
-      >
-        <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-          <div className="flex items-center gap-3">
-            <h2 className="font-mono text-sm font-medium text-[var(--text)]">
-              Cowork sessions
-            </h2>
-            {state.kind === "ok" && (
-              <span className="text-[10px] text-[var(--text-muted)]">
-                {filtered.length}/{state.sessions.length} shown
-                {state.sessions.filter((s) => s.isStarred).length > 0 && (
-                  <> · {state.sessions.filter((s) => s.isStarred).length} ★</>
-                )}
-                {state.sessions.filter((s) => s.isArchived).length > 0 && (
-                  <> · {state.sessions.filter((s) => s.isArchived).length} archived</>
-                )}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </header>
+    <div className="flex min-h-0 flex-1 flex-col bg-[var(--surface)]">
+      <header className="flex flex-shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-2">
+        <div className="flex items-center gap-3">
+          <h2 className="font-mono text-sm font-medium text-[var(--text)]">
+            Cowork sessions
+          </h2>
+          {state.kind === "ok" && (
+            <span className="text-[10px] text-[var(--text-muted)]">
+              {filtered.length}/{state.sessions.length} shown
+              {state.sessions.filter((s) => s.isStarred).length > 0 && (
+                <> · {state.sessions.filter((s) => s.isStarred).length} ★</>
+              )}
+              {state.sessions.filter((s) => s.isArchived).length > 0 && (
+                <> · {state.sessions.filter((s) => s.isArchived).length} archived</>
+              )}
+            </span>
+          )}
+        </div>
+      </header>
 
         {/* Filter row */}
         <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2">
@@ -487,7 +452,6 @@ export function CoworkSessions({ open, onClose, onSelect }: Props) {
             </table>
           )}
         </div>
-      </div>
     </div>
   );
 }
