@@ -126,6 +126,11 @@ const page = await ctx.newPage();
 const consoleLines = [];
 page.on("console", (m) => consoleLines.push(`[${m.type()}] ${m.text()}`));
 page.on("pageerror", (e) => consoleLines.push(`[pageerror] ${e.message}`));
+// Auto-accept every confirm() dialog that fires during this walkthrough.
+// Replaces ad-hoc `page.once("dialog", ...)` calls — if a dialog handler is
+// registered but the dialog doesn't fire that turn, it persists and clashes
+// with the next handler.
+page.on("dialog", (d) => d.accept());
 
 await page.goto(URL, { waitUntil: "networkidle" });
 await page.waitForSelector(".ProseMirror");
@@ -190,8 +195,6 @@ await test("'show archived' toggles archived session visibility", async () => {
 });
 
 await test("clicking a row closes the modal and loads its summary into the editor", async () => {
-  // Click "Active recent"
-  page.once("dialog", (d) => d.accept()); // confirm "discard unsaved" if asked
   await page.locator("tbody tr", { hasText: "Active recent" }).first().click();
   await page.waitForTimeout(400);
 
@@ -271,7 +274,6 @@ await test("Folder pane: expanding 'subdir' shows nested.md", async () => {
 
 await test("Folder pane: clicking a file invokes read_prompt_file", async () => {
   await page.evaluate(() => (window.__calls = []));
-  page.once("dialog", (d) => d.accept()); // editor may be dirty
   await page.locator("aside").locator("button", { hasText: "alpha.md" }).click();
   await page.waitForTimeout(400);
   const cmds = (await page.evaluate(() => window.__calls)).map((c) => (c[0] === "invoke" ? c[1] : c[0]));

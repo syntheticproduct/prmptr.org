@@ -189,6 +189,18 @@ export default function Home() {
     }
   }, []);
 
+  // FolderTreePane bypasses handleOpen, so guard at the call site here.
+  // Startup CLI-arg auto-load and File→Open already pass through their own
+  // discard checks (or have nothing to discard), so loadFromPath itself
+  // stays guard-free.
+  const openFromTree = useCallback(
+    async (path: string) => {
+      if (!confirmDiscard()) return;
+      await loadFromPath(path);
+    },
+    [confirmDiscard, loadFromPath],
+  );
+
   const handleCoworkSelect = useCallback(
     (s: CoworkSummary) => {
       if (!confirmDiscard()) return;
@@ -391,7 +403,7 @@ export default function Home() {
       <div className="flex min-h-0 flex-1">
         {viewMode === "folder" && (
           <FolderTreePane
-            onOpenFile={loadFromPath}
+            onOpenFile={openFromTree}
             selectedPath={openPath}
             initialRoot={DEV_DEFAULT_FOLDER_ROOT}
           />
