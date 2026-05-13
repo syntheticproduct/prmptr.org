@@ -357,32 +357,140 @@ fn scan_root(
     out
 }
 
-pub fn list_sessions_impl(
-    include_archived: bool,
-) -> Result<Vec<ClaudeSessionSummary>, ClaudeSessionsError> {
+struct SessionRoots {
+    projects_root: PathBuf,
+    archive_root: Option<PathBuf>,
+    repo_root: PathBuf,
+    main_prefix: String,
+    wt_prefix: String,
+}
+
+/// True if `projects_root` contains any directory whose name matches
+/// `main_prefix` or starts with `wt_prefix` (i.e. a session dir for this
+/// repo or one of its worktrees).
+fn root_has_match(projects_root: &Path, main_prefix: &str, wt_prefix: &str) -> bool {
+    let Ok(entries) = fs::read_dir(projects_root) else {
+        return false;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name == main_prefix || name.starts_with(wt_prefix) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Find Claude session roots for the current repo. Tries:
+///   1. The default `~/.claude/projects/` (resolved from $HOME) walked back
+///      from CWD — the dev-server path.
+///   2. On Windows, probe `\\wsl.localhost\<distro>\home\<user>\` for a
+///      `projects/prmptr.org` checkout — the installed-binary path. WSL
+///      hosts the Claude data; the Windows install dir doesn't.
+fn resolve_session_roots() -> Option<SessionRoots> {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
     let main_root = main_repo_root(&cwd);
     let main_prefix = encode_project_dir(&main_root);
     let wt_prefix = format!("{}--claude-worktrees-", main_prefix);
+    let default_active = active_root();
+    let default_archive = archive_root();
+
+    if let Some(ref p) = default_active {
+        if root_has_match(p, &main_prefix, &wt_prefix) {
+            return Some(SessionRoots {
+                projects_root: p.clone(),
+                archive_root: default_archive.clone(),
+                repo_root: main_root.clone(),
+                main_prefix: main_prefix.clone(),
+                wt_prefix: wt_prefix.clone(),
+            });
+        }
+    }
+
+    if let Some((projects, repo)) = probe_wsl_for_self() {
+        let main_prefix = encode_project_dir(&repo);
+        let wt_prefix = format!("{}--claude-worktrees-", main_prefix);
+        if root_has_match(&projects, &main_prefix, &wt_prefix) {
+            return Some(SessionRoots {
+                projects_root: projects,
+                // Archive root override isn't auto-probed on WSL yet — falls
+                // back to None so the archive scan is skipped rather than
+                // looking in the wrong place.
+                archive_root: None,
+                repo_root: repo,
+                main_prefix,
+                wt_prefix,
+            });
+        }
+    }
+
+    // Nothing matched anywhere. Return the default roots so the caller can
+    // still scan (and honestly report empty) instead of crashing.
+    default_active.map(|p| SessionRoots {
+        projects_root: p,
+        archive_root: default_archive,
+        repo_root: main_root,
+        main_prefix,
+        wt_prefix,
+    })
+}
+
+/// Probe `\\wsl.localhost\<distro>\home\<user>\` looking for this app's
+/// repo (`projects/prmptr.org`). When found, return `(claude_projects_root,
+/// repo_root_in_wsl_form)`. The repo root is expressed as a `/home/...`
+/// Unix path so its encoding lines up with the directory names Claude
+/// Code created inside the WSL filesystem.
+fn probe_wsl_for_self() -> Option<(PathBuf, PathBuf)> {
+    const APP_REPO_NAME: &str = "prmptr.org";
+    let wsl_root = Path::new(r"\\wsl.localhost\");
+    if !wsl_root.exists() {
+        return None;
+    }
+    let distros = fs::read_dir(wsl_root).ok()?;
+    for distro in distros.flatten() {
+        let home = distro.path().join("home");
+        let Ok(users) = fs::read_dir(&home) else {
+            continue;
+        };
+        for user in users.flatten() {
+            let user_path = user.path();
+            let projects_root = user_path.join(".claude").join("projects");
+            let repo_check = user_path.join("projects").join(APP_REPO_NAME);
+            if !projects_root.is_dir() || !repo_check.is_dir() {
+                continue;
+            }
+            let user_name = user_path.file_name()?.to_string_lossy().to_string();
+            let unix_repo =
+                PathBuf::from(format!("/home/{}/projects/{}", user_name, APP_REPO_NAME));
+            return Some((projects_root, unix_repo));
+        }
+    }
+    None
+}
+
+pub fn list_sessions_impl(
+    include_archived: bool,
+) -> Result<Vec<ClaudeSessionSummary>, ClaudeSessionsError> {
+    let Some(roots) = resolve_session_roots() else {
+        return Ok(Vec::new());
+    };
 
     let mut out: Vec<ClaudeSessionSummary> = Vec::new();
 
-    if let Some(active) = active_root() {
-        out.extend(scan_root(
-            &active,
-            &main_root,
-            &main_prefix,
-            &wt_prefix,
-            SessionSource::Active,
-        ));
-    }
+    out.extend(scan_root(
+        &roots.projects_root,
+        &roots.repo_root,
+        &roots.main_prefix,
+        &roots.wt_prefix,
+        SessionSource::Active,
+    ));
     if include_archived {
-        if let Some(archive) = archive_root() {
+        if let Some(archive) = roots.archive_root {
             out.extend(scan_root(
                 &archive,
-                &main_root,
-                &main_prefix,
-                &wt_prefix,
+                &roots.repo_root,
+                &roots.main_prefix,
+                &roots.wt_prefix,
                 SessionSource::Archive,
             ));
         }
