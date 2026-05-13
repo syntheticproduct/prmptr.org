@@ -104,6 +104,40 @@ When syncing worktrees, rebasing, merging, or any op that needs a clean tree, co
 
 **How:** During bulk ops, commit modified/untracked files as `WIP: <what was being worked on>`. Flag the WIP commits in the summary so he can amend or squash later if he wants.
 
+### Trunk-based discipline across worktrees
+
+`main` on origin is the integration point. The four numbered worktrees each sit on their own branch (`session1`–`session4`) — those branches exist as ephemeral perches to satisfy git's "one worktree per branch" rule, not as meaningful divergent lines of work. After every push cycle a session branch is equal to main again.
+
+The flow, run from inside the session worktree:
+
+1. **Pull main first.** `git pull origin main` — with `pull.rebase=true` set, this rebases the session branch onto current `origin/main`. Start every micro-feature from fresh main.
+2. **Work and commit** on the session branch. Multiple small commits are fine.
+3. **Cheap sanity check** (see next rule).
+4. **Push the session branch's tip directly to main.** `git push origin HEAD:main` — `HEAD:main` means "take whatever this branch is pointing at and push it as `origin/main`." Lands as a fast-forward.
+
+If the push is rejected as non-fast-forward, another session got there first. Re-pull (`git pull origin main` rebases your work onto the new main) and re-push. Repeat until it lands.
+
+After a successful push, the session branch and `origin/main` are equal — no cleanup needed, no merge commits in history. The next micro-feature starts at step 1 again.
+
+### Sanity check before every push
+
+"Compiles" still ≠ "works" per the working principles, but a syntax/type break propagating to every other worktree's next pull is the bug to prevent. Run before every `git push origin HEAD:main`:
+
+- Frontend changes touched: `npx tsc --noEmit`
+- Rust changes touched: `cargo check` (from `src-tauri/`)
+- Either, when in doubt: both.
+
+Skip the full `npm run build` — too slow for the loop. The cheap check catches the breakage class that would poison other worktrees on their next pull. If the cheap check fails, fix and re-check before pushing. Never push a known-red tree.
+
+### Conflicts during pull/rebase — halt and alert
+
+If `git pull origin main` hits a rebase conflict:
+
+- **Truly trivial** (whitespace-only; import order; clearly compatible edits in unrelated parts of the same file): resolve it, continue the rebase, proceed. The bar for "trivial" is "I'd bet a coffee Camille would do it the same way."
+- **Anything else**: `git rebase --abort`. Print a loud, clear message in chat — which file, which hunk, which session, what was being worked on. Then stop and wait. Don't guess at semantic merges that involve code another session is touching.
+
+The existing WIP rule still applies for uncommitted work that blocks the pull — commit it as `WIP: <summary>` first.
+
 ### Worktree icons — copy before building
 
 `src-tauri/icons/*.png` and `src-tauri/icons/ios/` are gitignored (`.gitignore` line 50: `*.png`). Only `icon.icns`, `icon.ico`, and the Android XMLs are in git.
@@ -128,17 +162,21 @@ Catching a numbered session up to main is fine; deleting one is not unless Camil
 When running `npm run tauri dev` inside WSL2:
 
 1. **Install color emoji font** (else titles with emojis render as boxes):
+
    ```
    sudo apt install fonts-noto-color-emoji
    ```
+
    Verify: `fc-list | grep -i emoji` should show `NotoColorEmoji.ttf`. Affects WSL dev only — Windows production builds use WebView2 + Segoe UI Emoji and are fine.
 
 2. **Expected harmless console noise** under WSLg — don't chase these as bugs:
+
    ```
    libEGL warning: failed to get driver name for fd -1
    MESA: error: ZINK: failed to choose pdev
    libEGL warning: egl: failed to create dri2 screen
    ```
+
    These are GPU passthrough trying hardware GL, failing, falling back to software rendering (which works). If something else also breaks, that something-else is the real issue.
 
 ### File ownership & redundancy preference
@@ -165,28 +203,3 @@ When running `npm run tauri dev` inside WSL2:
 ---
 
 @AGENTS.md
-
-[`file://wsl.localhost/Ubuntu/home/camille/projects/prmptr.org/CLAUDE.md`](file://wsl.localhost/Ubuntu/home/camille/projects/prmptr.org/CLAUDE.md)
-
-# Standing rules
-
-## Every file I write gets a clickable `file://` URL at the top
-
-Every markdown / doc / brief file I create or edit (memory entries, CLAUDE.md itself, scratch docs, anything user-facing on disk) must include a clickable `file://wsl.localhost/Ubuntu/...` URL on its own line near the top, pointing at the file's own absolute path.
-
-**Format** — markdown link with the URL as both text and href:
-
-```
-[`file://wsl.localhost/Ubuntu/home/camille/path/to/file.md`](file://wsl.localhost/Ubuntu/home/camille/path/to/file.md)
-```
-
-Place it directly under the H1 or frontmatter, on its own line.
-
-**Why:** Camille works on Windows over WSL. The `file://wsl.localhost/Ubuntu/<absolute-path>` URL renders as a clickable link in his Windows tools (Markdown viewers, Claude Desktop, etc.) and opens the file directly. Without it he has to copy-paste paths into a file picker.
-
-**Scope:**
-- Apply to: every `.md` / doc file written or edited via Write/Edit. If editing an existing markdown file that lacks the header URL, add it.
-- Skip: source code files (`.rs`, `.ts`, `.tsx`, `.css`, `.json`, etc.) — those use `file_path:line_number` references in chat replies instead.
-- Use the canonical main-checkout path when one exists, not a worktree-specific path.
-
-Mirrored from `memory/feedback_file_url_header.md` per the "mirror memories into CLAUDE.md" rule in `memory/feedback_file_truth_ownership.md`.
