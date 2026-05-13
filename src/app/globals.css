@@ -4,6 +4,11 @@
    Warm dark base (#161514 brown), violet accent (#b89aff), alpha-based borders.
    Semantic colors map to the roadmap's section-role bars too: green/blue/violet/orange/rose. */
 :root {
+  /* Scales just the menu/chrome (header, tab bar, footer) via CSS `zoom`,
+     driven from the Windows Accessibility "Text size" slider read by the
+     Rust backend. Defaults to 1.0 (off) until the frontend hydrates it. */
+  --menu-scale: 1;
+
   --bg: #161514;
   --surface: #1c1b1a;
   --surface-2: #232220;
@@ -11,10 +16,10 @@
   --surface-active: #322f2c;
   --border: rgba(255, 255, 255, 0.05);
   --border-strong: rgba(255, 255, 255, 0.09);
-  --text: #ece9e3;
-  --text-dim: #b8b3aa;
-  --text-muted: #807a71;
-  --text-faint: #4f4a44;
+  --text: #f4f1ea;
+  --text-dim: #d4cfc4;
+  --text-muted: #a39c91;
+  --text-faint: #6f6a62;
   --accent: #b89aff;
   --accent-hover: #ccb5ff;
   --accent-tint: rgba(184, 154, 255, 0.14);
@@ -34,6 +39,10 @@
 
 html {
   background: var(--bg);
+}
+
+.prmptr-chrome {
+  zoom: var(--menu-scale);
 }
 
 body {

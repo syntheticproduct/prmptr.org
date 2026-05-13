@@ -2568,6 +2568,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-log",
  "thiserror 2.0.18",
+ "winreg",
 ]
 
 [[package]]

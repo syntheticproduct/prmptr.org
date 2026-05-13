@@ -32,6 +32,9 @@ thiserror = "2"
 arboard = { version = "3", features = ["wayland-data-control"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
+
 # Release profile tuned for desktop distribution: small binary, no debug
 # unwind tables, full link-time optimization. Trades build time for size and
 # startup speed — both matter for a desktop app users install once and run

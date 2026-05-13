@@ -18,6 +18,7 @@ mod cowork;
 mod file;
 mod global_settings;
 mod path_safety;
+mod text_scale;
 
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -29,6 +30,7 @@ use clipboard::clipboard_image_to_path;
 use cowork::{list_cowork_sessions, set_cowork_archived};
 use file::{list_dir, read_prompt_file, write_prompt_file};
 use global_settings::{open_global_settings_window, read_global_settings};
+use text_scale::text_scale_factor;
 
 /// A one-shot holder for the file path passed on the command line.
 /// The frontend consumes it once on startup via `take_initial_path`.
@@ -87,6 +89,7 @@ pub fn run() {
             unarchive_sessions,
             read_global_settings,
             open_global_settings_window,
+            text_scale_factor,
         ])
         .setup(|app| {
             // Dev: chatty stdout/stderr at info level.

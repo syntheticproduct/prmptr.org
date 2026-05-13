@@ -141,6 +141,23 @@ export default function Home() {
     if (persistedView) setViewMode(persistedView);
   }, []);
 
+  // Pull the Windows Accessibility "Text size" slider into a CSS var so
+  // the menu/tab/footer chrome can scale without dragging the editor body
+  // along. Non-Windows hosts return 100, leaving the var at 1.0.
+  useEffect(() => {
+    invoke<number>("text_scale_factor")
+      .then((factor) => {
+        const ratio = factor > 0 ? factor / 100 : 1;
+        document.documentElement.style.setProperty(
+          "--menu-scale",
+          String(ratio),
+        );
+      })
+      .catch(() => {
+        /* not running under Tauri — ignore */
+      });
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(FRONTMATTER_MODE_KEY, frontmatterMode);
