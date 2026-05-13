@@ -1,3 +1,4 @@
+mod claude_sessions;
 mod clipboard;
 mod cowork;
 mod file;
@@ -6,6 +7,9 @@ mod global_settings;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use claude_sessions::{
+    archive_sessions, list_claude_sessions, read_claude_session_tail, unarchive_sessions,
+};
 use clipboard::clipboard_image_to_path;
 use cowork::{list_cowork_sessions, set_cowork_archived};
 use file::{list_dir, read_prompt_file, write_prompt_file};
@@ -49,6 +53,10 @@ pub fn run() {
             clipboard_image_to_path,
             list_cowork_sessions,
             set_cowork_archived,
+            list_claude_sessions,
+            read_claude_session_tail,
+            archive_sessions,
+            unarchive_sessions,
             read_global_settings,
             open_global_settings_window,
         ])

@@ -26,11 +26,12 @@ function formatError(e: unknown): string {
 type Props = {
   onStatus: (s: Status) => void;
   onOpenCowork: () => void;
+  onOpenSessionExplorer: () => void;
 };
 
 type SubKey = "code" | "cowork";
 
-export function ToolsMenu({ onStatus, onOpenCowork }: Props) {
+export function ToolsMenu({ onStatus, onOpenCowork, onOpenSessionExplorer }: Props) {
   const [open, setOpen] = useState(false);
   const [activeSub, setActiveSub] = useState<SubKey | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -138,6 +139,19 @@ export function ToolsMenu({ onStatus, onOpenCowork }: Props) {
                   <span className="text-xs text-[var(--text)]">Global Settings</span>
                   <span className="text-[10px] text-[var(--text-muted)]">
                     Open ~/.claude/ tree in a new window
+                  </span>
+                </button>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    closeAll();
+                    onOpenSessionExplorer();
+                  }}
+                  className={submenuItem}
+                >
+                  <span className="text-xs text-[var(--text)]">Session explorer</span>
+                  <span className="text-[10px] text-[var(--text-muted)]">
+                    Browse Claude Code sessions across this repo's worktrees
                   </span>
                 </button>
               </div>

@@ -136,3 +136,62 @@ export async function setCoworkArchived(
 export async function clipboardImageToPath(): Promise<ClipboardImageResult> {
   return invoke<ClipboardImageResult>("clipboard_image_to_path");
 }
+
+export type ClaudeSessionSummary = {
+  id: string;
+  whenUnixMs: number;
+  sizeBytes: number;
+  turns: number;
+  worktree: string;
+  topic: string;
+  sourcePath: string;
+  archived: boolean;
+  source: "active" | "archive";
+  projectDecoded: string;
+};
+
+// List Claude Code session JSONL files belonging to this project's tree
+// (main repo + git worktrees). Sorted newest-first by file mtime. Pass
+// includeArchived=true to also scan ~/.claude/projects-archive/ (or the
+// path in PRMPTR_CLAUDE_ARCHIVE_PATH).
+export async function listClaudeSessions(
+  includeArchived: boolean,
+): Promise<ClaudeSessionSummary[]> {
+  return invoke<ClaudeSessionSummary[]>("list_claude_sessions", {
+    includeArchived,
+  });
+}
+
+export type ArchiveResult = {
+  moved: { from: string; to: string }[];
+  failed: { path: string; reason: string }[];
+};
+
+// Move sessions from active → archive. Returns per-path success/failure;
+// never throws on individual moves. Collisions get a unix-timestamp suffix.
+export async function archiveSessions(paths: string[]): Promise<ArchiveResult> {
+  return invoke<ArchiveResult>("archive_sessions", { paths });
+}
+
+// Reverse of archiveSessions — same shape, same fail-soft semantics.
+export async function unarchiveSessions(paths: string[]): Promise<ArchiveResult> {
+  return invoke<ArchiveResult>("unarchive_sessions", { paths });
+}
+
+export type ClaudeMessageBrief = {
+  role: "user" | "assistant";
+  text: string;
+  timestamp: string | null;
+};
+
+// Read the last `maxMessages` visible exchanges (user + assistant text) from
+// a session JSONL, in chronological order. Skips tool_use/tool_result/etc.
+export async function readClaudeSessionTail(
+  path: string,
+  maxMessages: number,
+): Promise<ClaudeMessageBrief[]> {
+  return invoke<ClaudeMessageBrief[]>("read_claude_session_tail", {
+    path,
+    maxMessages,
+  });
+}
