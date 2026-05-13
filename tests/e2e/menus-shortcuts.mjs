@@ -155,12 +155,9 @@ await test("Save As prompts for a path with the current path as default", async 
   assert.ok(saveDialog, `expected dialog.save call; saw ${JSON.stringify(calls.map((c) => c[1] ?? c[0]))}`);
 });
 
-await test("Tools → Claude Code → Global Settings invokes open_global_settings_window", async () => {
+await test("Tools → Global Settings invokes open_global_settings_window", async () => {
   await page.evaluate(() => (window.__calls = []));
   await topHeader.locator("button", { hasText: /^Tools ▾$/ }).click();
-  // Hover the "Claude Code" parent item to expand the submenu.
-  await page.locator('[role="menuitem"]').filter({ hasText: /^Claude Code/ }).first().hover();
-  await page.waitForTimeout(100);
   await page.locator('[role="menuitem"]').filter({ hasText: /Global Settings/ }).first().click();
   await page.waitForTimeout(300);
   const cmds = (await page.evaluate(() => window.__calls)).map((c) => (c[0] === "invoke" ? c[1] : c[0]));
@@ -170,13 +167,9 @@ await test("Tools → Claude Code → Global Settings invokes open_global_settin
   );
 });
 
-await test("Tools → Cowork → Browse sessions opens the modal", async () => {
-  await topHeader.locator("button", { hasText: /^Tools ▾$/ }).click();
-  await page.locator('[role="menuitem"]').filter({ hasText: /^Claude Cowork/ }).first().hover();
-  await page.waitForTimeout(100);
-  await page.locator('[role="menuitem"]').filter({ hasText: /Browse sessions/ }).first().click();
+await test("Claude Cowork root tab shows inline sessions panel", async () => {
+  await page.locator('[role="tab"]', { hasText: /Claude Cowork/ }).click();
   await page.waitForTimeout(300);
-  // Modal heading
   await assert.ok(
     await page.locator("h2", { hasText: /Cowork sessions/ }).isVisible(),
   );
@@ -185,12 +178,13 @@ await test("Tools → Cowork → Browse sessions opens the modal", async () => {
     await page.locator("text=No sessions match.").isVisible(),
     "expected empty-state message",
   );
-  await page.keyboard.press("Escape");
+  // Switching to another tab hides the panel — there's no modal-style dismiss.
+  await page.locator('[role="tab"]', { hasText: /Prompt Engineering/ }).click();
   await page.waitForTimeout(150);
   await assert.equal(
     await page.locator("h2", { hasText: /Cowork sessions/ }).count(),
     0,
-    "modal should be closed",
+    "Cowork panel should be hidden when on another tab",
   );
 });
 

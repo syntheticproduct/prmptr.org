@@ -79,14 +79,11 @@ await page.waitForSelector(".ProseMirror");
 
 const topHeader = page.locator("main > header").first();
 
-await test("setup: single view, open cowork modal", async () => {
+await test("setup: single view, open Cowork tab", async () => {
   await topHeader.locator("button", { hasText: /view ▾$/i }).click();
   await page.locator('[role="menuitemradio"]', { hasText: "Single view" }).click();
   await page.waitForTimeout(100);
-  await topHeader.locator("button", { hasText: /^Tools ▾$/ }).click();
-  await page.locator('[role="menuitem"]').filter({ hasText: /^Claude Cowork/ }).first().hover();
-  await page.waitForTimeout(100);
-  await page.locator('[role="menuitem"]').filter({ hasText: /Browse sessions/ }).first().click();
+  await page.locator('[role="tab"]', { hasText: /Claude Cowork/ }).click();
   await page.waitForTimeout(400);
   await assert.ok(await page.locator("h2", { hasText: /Cowork sessions/ }).isVisible());
 });
@@ -151,19 +148,18 @@ await test("bulk archive: select 2, click Archive, confirm → set_cowork_archiv
   assert.equal(archCall[2].archived, true);
 });
 
-await test("Escape closes the modal", async () => {
-  await page.keyboard.press("Escape");
+await test("switching to another root tab hides the Cowork panel", async () => {
+  await page.locator('[role="tab"]', { hasText: /Prompt Engineering/ }).click();
   await page.waitForTimeout(150);
   assert.equal(
     await page.locator("h2", { hasText: /Cowork sessions/ }).count(),
     0,
-    "modal should close on Escape",
+    "Cowork panel should be hidden when on another tab",
   );
 });
 
 await test("View-mode button label updates to match current mode", async () => {
-  // We're currently in Single view. Open the toggle, switch to Folder view,
-  // then verify the button label says "Folder view".
+  // Back on the Prompt Engineering tab the ViewModeToggle is visible.
   const vmBtn = topHeader.locator("button", { hasText: /view ▾$/i });
   await vmBtn.click();
   await page.locator('[role="menuitemradio"]', { hasText: "Folder view" }).click();

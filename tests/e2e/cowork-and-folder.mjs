@@ -1,8 +1,8 @@
-// Test the CoworkSessions modal + FolderTreePane with realistic stubbed data.
+// Test the Claude Cowork root tab (inline CoworkSessions panel) and the
+// FolderTreePane with realistic stubbed data.
 //
-// Why: the menus-shortcuts test only checked the empty-state of the cowork
-// modal and never opened the folder pane on real data. These flows are the
-// most user-visible and most likely to harbor regressions.
+// Why: these flows are the most user-visible and most likely to harbor
+// regressions after the four-tab shell refactor.
 
 import { chromium } from "playwright";
 import { strict as assert } from "node:assert";
@@ -144,16 +144,13 @@ await test("setup: switch to Single view", async () => {
   await page.waitForTimeout(150);
 });
 
-// ─── Cowork modal ─────────────────────────────────────────────────────────
+// ─── Cowork tab ───────────────────────────────────────────────────────────
 const openCowork = async () => {
-  await topHeader.locator("button", { hasText: /^Tools ▾$/ }).click();
-  await page.locator('[role="menuitem"]').filter({ hasText: /^Claude Cowork/ }).first().hover();
-  await page.waitForTimeout(100);
-  await page.locator('[role="menuitem"]').filter({ hasText: /Browse sessions/ }).first().click();
+  await page.locator('[role="tab"]', { hasText: /Claude Cowork/ }).click();
   await page.waitForTimeout(400);
 };
 
-await test("Cowork modal lists all non-archived sessions", async () => {
+await test("Cowork tab lists all non-archived sessions", async () => {
   await openCowork();
   // Header counts: by default show archived is off, starred-only is off.
   // 6 total, 1 archived → 5 shown.
@@ -161,7 +158,7 @@ await test("Cowork modal lists all non-archived sessions", async () => {
   assert.ok(counter?.startsWith("5/6 shown"), `counter was: ${counter}`);
 });
 
-await test("Cowork modal honors Claude Desktop's pinnedOrder", async () => {
+await test("Cowork tab honors Claude Desktop's pinnedOrder", async () => {
   // The pinned section should have pin2 BEFORE pin1 because pinnedOrder = [pin2, pin1].
   const rows = await page.locator("tbody tr").allTextContents();
   const idxPin2 = rows.findIndex((t) => t.includes("Pinned beta"));
@@ -194,16 +191,19 @@ await test("'show archived' toggles archived session visibility", async () => {
   assert.ok(counter?.startsWith("6/6 shown"), `expected 6/6 with archived, got: ${counter}`);
 });
 
-await test("clicking a row closes the modal and loads its summary into the editor", async () => {
+await test("clicking a row jumps to Prompt Engineering tab and loads its summary", async () => {
   await page.locator("tbody tr", { hasText: "Active recent" }).first().click();
   await page.waitForTimeout(400);
 
-  // Modal should be gone
+  // Cowork panel should be hidden because we switched to the PE tab.
   assert.equal(
     await page.locator("h2", { hasText: /Cowork sessions/ }).count(),
     0,
-    "modal should be closed",
+    "Cowork panel should be hidden after PE switch",
   );
+  // Active tab should be Prompt Engineering.
+  const peTab = page.locator('[role="tab"]', { hasText: /Prompt Engineering/ });
+  await assert.equal(await peTab.getAttribute("aria-selected"), "true");
   // Editor should now show the cowork summary template — "# Active recent"
   const prose = await page.locator(".ProseMirror").first().innerHTML();
   assert.ok(

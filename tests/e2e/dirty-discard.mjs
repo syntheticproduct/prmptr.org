@@ -116,11 +116,8 @@ await test("File → Open prompts to discard when dirty", async () => {
 // ── 2. Cowork session row click ───────────────────────────────────────
 await test("Cowork session click prompts to discard when dirty", async () => {
   await makeDirty();
-  // Open cowork
-  await topHeader.locator("button", { hasText: /^Tools ▾$/ }).click();
-  await page.locator('[role="menuitem"]').filter({ hasText: /^Claude Cowork/ }).first().hover();
-  await page.waitForTimeout(100);
-  await page.locator('[role="menuitem"]').filter({ hasText: /Browse sessions/ }).first().click();
+  // Switch to the Cowork root tab
+  await page.locator('[role="tab"]', { hasText: /Claude Cowork/ }).click();
   await page.waitForTimeout(400);
   await page.evaluate(() => (window.__confirms = []));
   await page.locator("tbody tr", { hasText: "Session A" }).first().click();
