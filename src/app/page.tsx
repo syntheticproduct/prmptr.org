@@ -10,6 +10,7 @@ import {
   writePromptFile,
 } from "@/lib/tauri-fs";
 import { MilkdownEditor } from "@/components/MilkdownEditor";
+import { FileMenu } from "@/components/FileMenu";
 import { ToolsMenu } from "@/components/ToolsMenu";
 import { CoworkSessions } from "@/components/CoworkSessions";
 import { ViewModeToggle, type ViewMode } from "@/components/ViewModeToggle";
@@ -278,20 +279,54 @@ export default function Home() {
     }
   };
 
-  // Keyboard shortcuts: Cmd/Ctrl+S = save, Cmd/Ctrl+O = open, Cmd/Ctrl+N = new
+  const handleSaveAs = async () => {
+    setError(null);
+    setBusy("save");
+    try {
+      const target = await pickFileToSave(openPath ?? undefined);
+      if (!target) return;
+      await writePromptFile(target, text);
+      setOpenPath(target);
+      setSavedContent(text);
+    } catch (e) {
+      setError(formatError(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleExit = async () => {
+    if (!confirmDiscard()) return;
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      await getCurrentWindow().close();
+    } catch (e) {
+      setError(formatError(e));
+    }
+  };
+
+  // Keyboard shortcuts: Cmd/Ctrl+S = save, +Shift = save as, +O = open,
+  // +N = new, +Q = exit.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
-      if (e.key === "s") {
+      const key = e.key.toLowerCase();
+      if (key === "s" && e.shiftKey) {
+        e.preventDefault();
+        void handleSaveAs();
+      } else if (key === "s") {
         e.preventDefault();
         void handleSave();
-      } else if (e.key === "o") {
+      } else if (key === "o") {
         e.preventDefault();
         void handleOpen();
-      } else if (e.key === "n") {
+      } else if (key === "n") {
         e.preventDefault();
         handleNew();
+      } else if (key === "q") {
+        e.preventDefault();
+        void handleExit();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -307,25 +342,17 @@ export default function Home() {
             prmptr<span className="text-[var(--accent)]">.org</span>
           </span>
           <div className="flex items-center gap-0.5">
-            <button onClick={handleNew} className={toolbarBtn}>
-              New
-            </button>
             {tauri ? (
               <>
-                <button
-                  onClick={handleOpen}
-                  disabled={busy !== null}
-                  className={toolbarBtn}
-                >
-                  {busy === "open" ? "…" : "Open"}
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={busy !== null || (!text && !openPath)}
-                  className={toolbarBtn}
-                >
-                  {busy === "save" ? "…" : "Save"}
-                </button>
+                <FileMenu
+                  onNew={handleNew}
+                  onOpen={handleOpen}
+                  onSave={handleSave}
+                  onSaveAs={handleSaveAs}
+                  onExit={handleExit}
+                  busy={busy}
+                  canSave={Boolean(text) || Boolean(openPath)}
+                />
                 <ToolsMenu
                   onStatus={setToolStatus}
                   onOpenCowork={() => setCoworkOpen(true)}
@@ -337,9 +364,14 @@ export default function Home() {
                 />
               </>
             ) : (
-              <span className="px-2 text-[10px] text-[var(--text-muted)]">
-                file ops require desktop app
-              </span>
+              <>
+                <button onClick={handleNew} className={toolbarBtn}>
+                  New
+                </button>
+                <span className="px-2 text-[10px] text-[var(--text-muted)]">
+                  file ops require desktop app
+                </span>
+              </>
             )}
           </div>
         </div>
