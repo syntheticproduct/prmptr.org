@@ -104,6 +104,18 @@ When syncing worktrees, rebasing, merging, or any op that needs a clean tree, co
 
 **How:** During bulk ops, commit modified/untracked files as `WIP: <what was being worked on>`. Flag the WIP commits in the summary so he can amend or squash later if he wants.
 
+### Default build target — Windows, no asking
+
+When Camille says "build", "release", "install locally", or anything similar in this repo, default to a **Windows** build. Don't ask which platform.
+
+Cross-compile from WSL with the GNU target (MinGW + NSIS already installed):
+
+```
+npm run tauri build -- --target x86_64-pc-windows-gnu --bundles nsis
+```
+
+Artifacts land in `src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis/*.exe`. "Install locally" = launch that `.exe` from Windows (`cmd.exe /c start ...` from WSL works). No Rust on Windows; no MSVC build path. WSL has `x86_64-pc-windows-gnu` target installed and `/usr/bin/x86_64-w64-mingw32-gcc` + `/usr/bin/makensis`.
+
 ### Worktree icons — copy before building
 
 `src-tauri/icons/*.png` and `src-tauri/icons/ios/` are gitignored (`.gitignore` line 50: `*.png`). Only `icon.icns`, `icon.ico`, and the Android XMLs are in git.
