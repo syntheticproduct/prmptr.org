@@ -653,6 +653,52 @@ pub fn open_cowork_session_window(
     Ok(())
 }
 
+/// Hard-delete one Cowork session. Removes the `local_<id>.json` plus the
+/// sibling `.bak` and sibling directory of the same stem (audit log, output
+/// artifacts) — Claude Desktop will recreate any of those on next launch
+/// if they were already restored from the backup, so cleaning them all up
+/// avoids the "deleted session reappears" surprise.
+///
+/// Path-safety: input must canonicalize under the resolved cowork root.
+#[tauri::command]
+pub fn delete_cowork_session(path: PathBuf) -> Result<(), CoworkError> {
+    let root = cowork_root().ok_or(CoworkError::NotFound)?;
+    let safe = path_safety::validate_under_root(&path, &root)?;
+
+    // The .json itself must succeed; companions are best-effort so a
+    // half-deleted state from a prior run can still complete.
+    std::fs::remove_file(&safe)?;
+    log::info!("delete_cowork_session removed {}", safe.display());
+
+    if let Some(file_name) = safe.file_name().and_then(|s| s.to_str()) {
+        let mut bak = safe.clone();
+        bak.set_file_name(format!("{}.bak", file_name));
+        if bak.exists() {
+            if let Err(e) = std::fs::remove_file(&bak) {
+                log::warn!("delete_cowork_session bak cleanup {}: {}", bak.display(), e);
+            }
+        }
+    }
+
+    if let Some(stem) = safe.file_stem().and_then(|s| s.to_str()) {
+        if !stem.is_empty() {
+            let mut dir = safe.clone();
+            dir.set_file_name(stem);
+            if dir.is_dir() {
+                if let Err(e) = std::fs::remove_dir_all(&dir) {
+                    log::warn!(
+                        "delete_cowork_session dir cleanup {}: {}",
+                        dir.display(),
+                        e
+                    );
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

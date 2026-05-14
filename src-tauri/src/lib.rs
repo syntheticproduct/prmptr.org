@@ -19,6 +19,7 @@ mod cowork;
 mod file;
 mod global_settings;
 mod path_safety;
+mod reveal;
 mod text_scale;
 mod worktrees;
 
@@ -27,12 +28,16 @@ use std::sync::Mutex;
 
 use bridge::bridge_status;
 use claude_sessions::{
-    archive_sessions, list_claude_sessions, read_claude_session_tail, unarchive_sessions,
+    archive_sessions, delete_claude_session, list_claude_sessions, list_claude_sessions_global,
+    read_claude_session_tail, unarchive_sessions,
 };
 use clipboard::clipboard_image_to_path;
-use cowork::{list_cowork_sessions, open_cowork_session_window, set_cowork_archived};
+use cowork::{
+    delete_cowork_session, list_cowork_sessions, open_cowork_session_window, set_cowork_archived,
+};
 use file::{list_dir, read_prompt_file, write_prompt_file};
 use global_settings::{open_global_settings_window, read_global_settings};
+use reveal::reveal_in_file_manager;
 use text_scale::text_scale_factor;
 use worktrees::{delete_project_worktree, list_project_worktrees};
 
@@ -88,10 +93,14 @@ pub fn run() {
             list_cowork_sessions,
             set_cowork_archived,
             open_cowork_session_window,
+            delete_cowork_session,
             list_claude_sessions,
+            list_claude_sessions_global,
             read_claude_session_tail,
             archive_sessions,
             unarchive_sessions,
+            delete_claude_session,
+            reveal_in_file_manager,
             read_global_settings,
             open_global_settings_window,
             bridge_status,

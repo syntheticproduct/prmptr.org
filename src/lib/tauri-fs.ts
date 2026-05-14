@@ -148,6 +148,7 @@ export type ClaudeSessionSummary = {
   archived: boolean;
   source: "active" | "archive";
   projectDecoded: string;
+  isCurrentRepo: boolean;
 };
 
 // List Claude Code session JSONL files belonging to this project's tree
@@ -160,6 +161,38 @@ export async function listClaudeSessions(
   return invoke<ClaudeSessionSummary[]>("list_claude_sessions", {
     includeArchived,
   });
+}
+
+// Global variant of listClaudeSessions — walks every project dir under
+// ~/.claude/projects/ (and the archive root) and returns every session
+// regardless of which repo it belongs to. Each row carries isCurrentRepo
+// so the Library can offer a one-click "this repo only" filter.
+export async function listClaudeSessionsGlobal(
+  includeArchived: boolean,
+): Promise<ClaudeSessionSummary[]> {
+  return invoke<ClaudeSessionSummary[]>("list_claude_sessions_global", {
+    includeArchived,
+  });
+}
+
+// Hard-delete a Claude Code session JSONL. Path-checked against the active
+// and archive roots on the Rust side. Returns the canonical path removed.
+export async function deleteClaudeSession(path: string): Promise<string> {
+  return invoke<string>("delete_claude_session", { path });
+}
+
+// Hard-delete a Cowork session: removes the JSON, sibling .bak, and the
+// sibling output directory of the same stem. Path-checked against the
+// resolved Cowork root.
+export async function deleteCoworkSession(path: string): Promise<void> {
+  await invoke<void>("delete_cowork_session", { path });
+}
+
+// Open the OS file manager pointed at `path`. Windows/macOS select the
+// file itself; WSL bridges through explorer.exe via wslpath; plain Linux
+// falls back to opening the containing folder (no portable "select" verb).
+export async function revealInFileManager(path: string): Promise<void> {
+  await invoke<void>("reveal_in_file_manager", { path });
 }
 
 export type ArchiveResult = {

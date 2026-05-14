@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { SessionExplorer } from "@/components/SessionExplorer";
 import { WorktreeJanitor } from "@/components/WorktreeJanitor";
 import { BridgePane } from "@/components/BridgePane";
+import { Library } from "@/components/Library";
 
-type Sub = "sessions" | "janitor" | "bridge";
+type Sub = "library" | "sessions" | "janitor" | "bridge";
 
 const SUBS: { value: Sub; label: string }[] = [
+  { value: "library", label: "Library" },
   { value: "sessions", label: "Session explorer" },
   { value: "janitor", label: "Worktree janitor" },
   { value: "bridge", label: "Bridge" },
@@ -16,14 +18,15 @@ const SUBS: { value: Sub; label: string }[] = [
 const SUB_KEY = "prmptr.claudeCodeSub";
 
 function loadSub(): Sub {
-  if (typeof window === "undefined") return "sessions";
+  if (typeof window === "undefined") return "library";
   const v = window.localStorage.getItem(SUB_KEY);
-  if (v === "sessions" || v === "janitor" || v === "bridge") return v;
-  return "sessions";
+  if (v === "library" || v === "sessions" || v === "janitor" || v === "bridge")
+    return v;
+  return "library";
 }
 
 export function ClaudeCodeTab() {
-  const [sub, setSub] = useState<Sub>("sessions");
+  const [sub, setSub] = useState<Sub>("library");
 
   useEffect(() => {
     setSub(loadSub());
@@ -54,6 +57,7 @@ export function ClaudeCodeTab() {
           );
         })}
       </div>
+      {sub === "library" && <Library />}
       {sub === "sessions" && <SessionExplorer />}
       {sub === "janitor" && <WorktreeJanitor />}
       {sub === "bridge" && <BridgePane />}

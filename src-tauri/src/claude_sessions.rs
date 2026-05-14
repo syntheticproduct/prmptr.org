@@ -52,7 +52,9 @@ pub struct ClaudeSessionSummary {
     pub size_bytes: u64,
     /// Count of human-authored user prompts (excludes tool_result entries).
     pub turns: u32,
-    /// Friendly worktree label: "(main)" or "sessionN".
+    /// Friendly worktree/project label: "(main)" or "sessionN" for the
+    /// current repo; for foreign projects in global scans, the last path
+    /// segment of the decoded project path.
     pub worktree: String,
     /// First human prompt's text, truncated to ~200 chars. May be empty.
     pub topic: String,
@@ -67,6 +69,10 @@ pub struct ClaudeSessionSummary {
     /// the current project tree; otherwise it's a heuristic guess with
     /// "(approx)" appended.
     pub project_decoded: String,
+    /// True when this session belongs to the current repo (main or one of
+    /// its worktrees). Lets the Library view filter "this repo only" without
+    /// having to round-trip path comparison.
+    pub is_current_repo: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -351,6 +357,7 @@ fn scan_root(
                 archived,
                 source,
                 project_decoded: project_decoded.clone(),
+                is_current_repo: true,
             });
         }
     }
@@ -505,6 +512,186 @@ pub fn list_claude_sessions(
     include_archived: bool,
 ) -> Result<Vec<ClaudeSessionSummary>, ClaudeSessionsError> {
     list_sessions_impl(include_archived)
+}
+
+/// Walk every project directory under `root` (not just ones matching the
+/// current repo). For each session, decode its project path back from the
+/// encoded directory name and mark `is_current_repo` so the Library can
+/// filter without an extra round-trip.
+fn scan_root_global(
+    root: &Path,
+    main_root: &Path,
+    main_prefix: &str,
+    wt_prefix: &str,
+    source: SessionSource,
+) -> Vec<ClaudeSessionSummary> {
+    let mut out: Vec<ClaudeSessionSummary> = Vec::new();
+    let entries = match fs::read_dir(root) {
+        Ok(e) => e,
+        Err(e) => {
+            if e.kind() != std::io::ErrorKind::NotFound {
+                log::warn!("scan_root_global {} failed: {}", root.display(), e);
+            }
+            return out;
+        }
+    };
+    let archived = matches!(source, SessionSource::Archive);
+
+    for entry in entries.flatten() {
+        let dir_path = entry.path();
+        if !dir_path.is_dir() {
+            continue;
+        }
+        let dir_name = entry.file_name().to_string_lossy().into_owned();
+
+        let is_main = dir_name == main_prefix;
+        let is_wt = dir_name.starts_with(wt_prefix);
+        let is_current_repo = is_main || is_wt;
+
+        let project_decoded = decode_project_dir(&dir_name, main_root, main_prefix);
+        let label = if is_current_repo {
+            worktree_label(&dir_name, main_prefix)
+        } else {
+            // Short label = last non-empty segment of the decoded path,
+            // stripped of any "(approx)" tag so the table column stays tidy.
+            let trimmed = project_decoded
+                .trim_end_matches(" (approx)")
+                .trim_end_matches('/')
+                .trim_end_matches('\\');
+            trimmed
+                .rsplit(|c| c == '/' || c == '\\')
+                .find(|seg| !seg.is_empty())
+                .unwrap_or(&dir_name)
+                .to_string()
+        };
+
+        let jsonls = match fs::read_dir(&dir_path) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for jf in jsonls.flatten() {
+            let p = jf.path();
+            if p.extension().and_then(|e| e.to_str()) != Some("jsonl") {
+                continue;
+            }
+            let meta = match jf.metadata() {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            let id = p
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string();
+            if id.is_empty() {
+                continue;
+            }
+            let (turns, topic) = scan_session(&p).unwrap_or((0, String::new()));
+            out.push(ClaudeSessionSummary {
+                id,
+                when_unix_ms: mtime_unix_ms(&meta),
+                size_bytes: meta.len(),
+                turns,
+                worktree: label.clone(),
+                topic,
+                source_path: p,
+                archived,
+                source,
+                project_decoded: project_decoded.clone(),
+                is_current_repo,
+            });
+        }
+    }
+    out
+}
+
+/// Same as [`list_sessions_impl`] but walks every project, not just the
+/// current repo. Backs the Library view's "all projects" default.
+pub fn list_sessions_global_impl(
+    include_archived: bool,
+) -> Result<Vec<ClaudeSessionSummary>, ClaudeSessionsError> {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
+    let main_root = main_repo_root(&cwd);
+    let main_prefix = encode_project_dir(&main_root);
+    let wt_prefix = format!("{}--claude-worktrees-", main_prefix);
+
+    // For global scans we use the *default* roots — the WSL-probe trick is
+    // only needed when listing the current repo from a Windows binary, and
+    // even then the active root we'd probe lives at the same default path.
+    let active = match active_root() {
+        Some(p) => p,
+        None => return Ok(Vec::new()),
+    };
+    let archive = archive_root();
+
+    let mut out = scan_root_global(
+        &active,
+        &main_root,
+        &main_prefix,
+        &wt_prefix,
+        SessionSource::Active,
+    );
+    if include_archived {
+        if let Some(a) = archive {
+            out.extend(scan_root_global(
+                &a,
+                &main_root,
+                &main_prefix,
+                &wt_prefix,
+                SessionSource::Archive,
+            ));
+        }
+    }
+
+    out.sort_by_key(|b| std::cmp::Reverse(b.when_unix_ms));
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn list_claude_sessions_global(
+    include_archived: bool,
+) -> Result<Vec<ClaudeSessionSummary>, ClaudeSessionsError> {
+    list_sessions_global_impl(include_archived)
+}
+
+/// Hard-delete a Claude Code session .jsonl. Path must canonicalize to a
+/// location under the active or archive root so this command can't be
+/// coerced into removing arbitrary files. Returns the canonical path that
+/// was removed for logging.
+#[tauri::command]
+pub fn delete_claude_session(path: String) -> Result<PathBuf, ClaudeSessionsError> {
+    let path = PathBuf::from(path);
+    let canonical = path.canonicalize()?;
+    if canonical.extension().and_then(|e| e.to_str()) != Some("jsonl") {
+        return Err(ClaudeSessionsError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "refusing to delete non-jsonl path",
+        )));
+    }
+
+    let active = active_root().ok_or(ClaudeSessionsError::NoHome)?;
+    let archive = archive_root();
+    let under_active = active
+        .canonicalize()
+        .ok()
+        .map_or(false, |ca| canonical.starts_with(&ca));
+    let under_archive = archive
+        .as_ref()
+        .and_then(|a| a.canonicalize().ok())
+        .map_or(false, |ca| canonical.starts_with(&ca));
+    if !under_active && !under_archive {
+        return Err(ClaudeSessionsError::Io(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            format!(
+                "path {} not under claude session roots",
+                canonical.display()
+            ),
+        )));
+    }
+
+    fs::remove_file(&canonical)?;
+    log::info!("delete_claude_session removed {}", canonical.display());
+    Ok(canonical)
 }
 
 #[derive(Debug, Serialize)]
