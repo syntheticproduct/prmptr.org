@@ -68,6 +68,15 @@ export function ToolsMenu({ onStatus }: Props) {
     }
   }, [onStatus]);
 
+  const openBridge = useCallback(async () => {
+    closeAll();
+    try {
+      await invoke("open_bridge_window");
+    } catch (e) {
+      onStatus({ kind: "err", message: formatError(e) });
+    }
+  }, [onStatus]);
+
   const menuItem =
     "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition hover:bg-[var(--surface-3)]";
 
@@ -96,6 +105,16 @@ export function ToolsMenu({ onStatus }: Props) {
             <span className="text-xs text-[var(--text)]">Global Settings</span>
             <span className="text-[10px] text-[var(--text-muted)]">
               Open ~/.claude/ tree in a new window
+            </span>
+          </button>
+          <button
+            role="menuitem"
+            onClick={openBridge}
+            className={menuItem}
+          >
+            <span className="text-xs text-[var(--text)]">Bridge</span>
+            <span className="text-[10px] text-[var(--text-muted)]">
+              Windows ↔ WSL config sync inspector
             </span>
           </button>
           <button

@@ -12,6 +12,7 @@
     )
 )]
 
+mod bridge;
 mod claude_sessions;
 mod clipboard;
 mod cowork;
@@ -23,6 +24,7 @@ mod text_scale;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use bridge::{bridge_status, open_bridge_window};
 use claude_sessions::{
     archive_sessions, list_claude_sessions, read_claude_session_tail, unarchive_sessions,
 };
@@ -89,6 +91,8 @@ pub fn run() {
             unarchive_sessions,
             read_global_settings,
             open_global_settings_window,
+            bridge_status,
+            open_bridge_window,
             text_scale_factor,
         ])
         .setup(|app| {
