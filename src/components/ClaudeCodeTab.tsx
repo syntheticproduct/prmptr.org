@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { SessionExplorer } from "@/components/SessionExplorer";
 import { WorktreeJanitor } from "@/components/WorktreeJanitor";
+import { BridgePane } from "@/components/BridgePane";
 
-type Sub = "sessions" | "janitor";
+type Sub = "sessions" | "janitor" | "bridge";
 
 const SUBS: { value: Sub; label: string }[] = [
   { value: "sessions", label: "Session explorer" },
   { value: "janitor", label: "Worktree janitor" },
+  { value: "bridge", label: "Bridge" },
 ];
 
 const SUB_KEY = "prmptr.claudeCodeSub";
@@ -16,7 +18,7 @@ const SUB_KEY = "prmptr.claudeCodeSub";
 function loadSub(): Sub {
   if (typeof window === "undefined") return "sessions";
   const v = window.localStorage.getItem(SUB_KEY);
-  if (v === "sessions" || v === "janitor") return v;
+  if (v === "sessions" || v === "janitor" || v === "bridge") return v;
   return "sessions";
 }
 
@@ -54,6 +56,7 @@ export function ClaudeCodeTab() {
       </div>
       {sub === "sessions" && <SessionExplorer />}
       {sub === "janitor" && <WorktreeJanitor />}
+      {sub === "bridge" && <BridgePane />}
     </div>
   );
 }

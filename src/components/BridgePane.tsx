@@ -74,7 +74,7 @@ function formatBytes(n: number | null): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export default function BridgePage() {
+export function BridgePane() {
   const [status, setStatus] = useState<BridgeStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -97,29 +97,29 @@ export default function BridgePage() {
   }, [load]);
 
   return (
-    <main className="min-h-dvh bg-[var(--bg)] p-6 text-[var(--text)]">
+    <div className="min-h-0 flex-1 overflow-y-auto p-4">
       <div className="mx-auto max-w-5xl">
-        <header className="mb-5 flex items-baseline justify-between gap-4">
+        <header className="mb-4 flex items-baseline justify-between gap-4">
           <div>
-            <h1 className="font-mono text-lg font-medium">
+            <h2 className="font-mono text-sm font-medium">
               Bridge
               <span className="ml-2 text-[var(--text-muted)]">·</span>
-              <span className="ml-2 font-sans text-xs text-[var(--text-muted)]">
+              <span className="ml-2 font-sans text-[11px] text-[var(--text-muted)]">
                 Windows ↔ WSL config sync
               </span>
-            </h1>
+            </h2>
           </div>
           <button
             onClick={() => void load()}
             disabled={refreshing}
-            className="rounded-md bg-[var(--surface-2)] px-3 py-1 text-xs text-[var(--text)] ring-1 ring-[var(--border)] transition hover:bg-[var(--surface-3)] disabled:opacity-50"
+            className="rounded-md bg-[var(--surface-2)] px-2.5 py-1 text-[11px] text-[var(--text)] ring-1 ring-[var(--border)] transition hover:bg-[var(--surface-3)] disabled:opacity-50"
           >
             {refreshing ? "Scanning…" : "Refresh"}
           </button>
         </header>
 
         {error && (
-          <div className="mb-4 rounded-lg bg-[var(--surface)] p-4 text-sm text-[var(--danger)] ring-1 ring-[var(--border)]">
+          <div className="mb-3 rounded-lg bg-[var(--surface)] p-3 text-xs text-[var(--danger)] ring-1 ring-[var(--border)]">
             {error}
           </div>
         )}
@@ -139,10 +139,10 @@ export default function BridgePage() {
               />
             </div>
 
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-mono text-xs uppercase tracking-wide text-[var(--text-muted)]">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="font-mono text-[10px] uppercase tracking-wide text-[var(--text-muted)]">
                 Share targets
-              </h2>
+              </h3>
               <span className="text-[10px] text-[var(--text-muted)]">
                 {status.targets.length} entries
               </span>
@@ -154,7 +154,7 @@ export default function BridgePage() {
               ))}
             </div>
 
-            <div className="mt-6 rounded-lg bg-[var(--surface)] p-4 text-[11px] text-[var(--text-muted)] ring-1 ring-[var(--border)]">
+            <div className="mt-5 rounded-lg bg-[var(--surface)] p-3 text-[10px] text-[var(--text-muted)] ring-1 ring-[var(--border)]">
               <strong className="text-[var(--text-dim)]">Reconcile</strong>{" "}
               (one-click symlink) is coming next. For now this view is
               read-only — surface drift, then handle it manually with{" "}
@@ -172,7 +172,7 @@ export default function BridgePage() {
           <div className="text-xs text-[var(--text-muted)]">Scanning…</div>
         )}
       </div>
-    </main>
+    </div>
   );
 }
 

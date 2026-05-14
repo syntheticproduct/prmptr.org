@@ -153,38 +153,6 @@ pub fn bridge_status() -> Result<BridgeStatus, String> {
     })
 }
 
-#[tauri::command]
-pub fn open_bridge_window(app: tauri::AppHandle) -> Result<(), String> {
-    use tauri::Manager;
-
-    const WINDOW_LABEL: &str = "bridge";
-    if let Some(existing) = app.get_webview_window(WINDOW_LABEL) {
-        existing.set_focus().map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-
-    #[cfg(debug_assertions)]
-    let url = {
-        #[allow(clippy::expect_used)]
-        let parsed = "http://localhost:3000/bridge"
-            .parse()
-            .expect("dev URL parse");
-        tauri::WebviewUrl::External(parsed)
-    };
-    #[cfg(not(debug_assertions))]
-    let url = tauri::WebviewUrl::App("bridge.html".into());
-
-    tauri::WebviewWindowBuilder::new(&app, WINDOW_LABEL, url)
-        .title("Bridge · prmptr.org")
-        .inner_size(1100.0, 750.0)
-        .min_inner_size(720.0, 480.0)
-        .resizable(true)
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
 /// `$HOME/.claude/` if `$HOME` resolves and the directory is at least
 /// reachable as a path (existence is reported per-target, not here).
 fn wsl_claude_root() -> Option<PathBuf> {
