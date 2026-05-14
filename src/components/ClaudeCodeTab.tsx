@@ -1,16 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SessionExplorer } from "@/components/SessionExplorer";
+import { WorktreeJanitor } from "@/components/WorktreeJanitor";
 
-type Sub = "sessions";
+type Sub = "sessions" | "janitor";
 
 const SUBS: { value: Sub; label: string }[] = [
   { value: "sessions", label: "Session explorer" },
+  { value: "janitor", label: "Worktree janitor" },
 ];
+
+const SUB_KEY = "prmptr.claudeCodeSub";
+
+function loadSub(): Sub {
+  if (typeof window === "undefined") return "sessions";
+  const v = window.localStorage.getItem(SUB_KEY);
+  if (v === "sessions" || v === "janitor") return v;
+  return "sessions";
+}
 
 export function ClaudeCodeTab() {
   const [sub, setSub] = useState<Sub>("sessions");
+
+  useEffect(() => {
+    setSub(loadSub());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(SUB_KEY, sub);
+  }, [sub]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[var(--bg)]">
       <div className="flex flex-shrink-0 items-center gap-0.5 border-b border-[var(--border)] px-2 py-1.5">
@@ -32,6 +53,7 @@ export function ClaudeCodeTab() {
         })}
       </div>
       {sub === "sessions" && <SessionExplorer />}
+      {sub === "janitor" && <WorktreeJanitor />}
     </div>
   );
 }

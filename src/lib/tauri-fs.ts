@@ -178,6 +178,55 @@ export async function unarchiveSessions(paths: string[]): Promise<ArchiveResult>
   return invoke<ArchiveResult>("unarchive_sessions", { paths });
 }
 
+export type WorktreeCategory = "numbered" | "auto";
+export type WorktreeStatus = "clean" | "dirty" | "not-git" | "unknown";
+export type WorktreeDeleteMethod =
+  | "git-worktree-remove"
+  | "git-worktree-remove-force"
+  | "filesystem-remove";
+
+export type WorktreeEntry = {
+  name: string;
+  path: string;
+  project: string;
+  projectPath: string;
+  category: WorktreeCategory;
+  status: WorktreeStatus;
+  sizeBytes: number;
+  sizeCapped: boolean;
+  lastActivityMs: number;
+  branch: string | null;
+  registered: boolean;
+};
+
+export type JanitorListing = {
+  entries: WorktreeEntry[];
+  scanRoots: string[];
+  truncated: boolean;
+};
+
+// Walks $HOME/projects/*/.claude/worktrees/* (override:
+// PRMPTR_JANITOR_SCAN_ROOTS, colon-separated). Numbered worktrees sort
+// last; oldest auto-named ones first.
+export async function listProjectWorktrees(): Promise<JanitorListing> {
+  return invoke<JanitorListing>("list_project_worktrees");
+}
+
+export type WorktreeDeleteOutcome = {
+  deleted: string;
+  method: WorktreeDeleteMethod;
+};
+
+// Delete a single worktree. Prefers `git worktree remove`; `force=true`
+// is required when there are uncommitted changes. Path must resolve to
+// `*/.claude/worktrees/*` — backend rejects anything else.
+export async function deleteProjectWorktree(
+  path: string,
+  force: boolean,
+): Promise<WorktreeDeleteOutcome> {
+  return invoke<WorktreeDeleteOutcome>("delete_project_worktree", { path, force });
+}
+
 export type ClaudeMessageBrief = {
   role: "user" | "assistant";
   text: string;
