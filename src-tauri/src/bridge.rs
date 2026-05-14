@@ -6,9 +6,12 @@
 //! creation) is intentionally NOT exposed yet — symlinks across the WSL
 //! boundary are destructive enough to deserve a separate UX pass.
 
+use std::fs;
+use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 /// One file/dir we know about — the canonical things Claude Code users
@@ -333,6 +336,190 @@ fn is_wsl() -> bool {
     false
 }
 
+// ---------------------------------------------------------------------------
+// Reconcile actions — v2 layer on top of the read-only inspector above.
+//
+// Three one-click moves a user can apply to any share target:
+// - Copy Windows → WSL: overwrite the WSL side with a snapshot of the
+//   Windows side. The previous WSL content is renamed aside, not deleted.
+// - Copy WSL → Windows: mirror of the above.
+// - Symlink WSL → Windows: replace the WSL path with a Linux symlink at
+//   `target = <windows path>`. This is the canonical "share one config"
+//   move — Claude Code inside WSL now reads/writes the Windows-side file.
+//
+// Every destructive op renames the existing destination to
+// `<path>.prmptr-backup-<unix-ms>` first (via `fs::rename`, which preserves
+// symlinks verbatim — no accidental deref). We never delete.
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BridgeAction {
+    CopyWindowsToWsl,
+    CopyWslToWindows,
+    SymlinkWslToWindows,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BridgeActionResult {
+    /// Updated status for the affected share target so the UI can refresh
+    /// a single row without re-running the full status scan.
+    pub status: TargetStatus,
+    /// If the operation renamed an existing destination aside, the new
+    /// `.prmptr-backup-<ms>` path. None when the destination was missing.
+    pub backup_path: Option<String>,
+}
+
+fn share_target_for(rel: &str) -> Option<&'static ShareTarget> {
+    SHARE_TARGETS.iter().find(|t| t.rel == rel)
+}
+
+fn now_unix_ms() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| i64::try_from(d.as_millis()).unwrap_or(0))
+        .unwrap_or(0)
+}
+
+/// Rename `path` to `<path>.prmptr-backup-<ms>` if it exists. Works for
+/// files, directories, and symlinks (using `rename`, which preserves the
+/// symlink without dereferencing). Returns the backup path, or None if the
+/// destination did not exist.
+fn backup_if_exists(path: &Path) -> io::Result<Option<PathBuf>> {
+    if fs::symlink_metadata(path).is_err() {
+        return Ok(None);
+    }
+    let backup = {
+        let mut name = path.as_os_str().to_owned();
+        name.push(format!(".prmptr-backup-{}", now_unix_ms()));
+        PathBuf::from(name)
+    };
+    fs::rename(path, &backup)?;
+    Ok(Some(backup))
+}
+
+fn ensure_parent(path: &Path) -> io::Result<()> {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+    Ok(())
+}
+
+/// Recursively copy `src` to `dst`. Creates `dst` fresh. Files and dirs are
+/// reproduced; symlinks, sockets, fifos, and other special entries are
+/// skipped — Claude config doesn't use them and we don't want to mirror
+/// them blindly.
+fn copy_tree(src: &Path, dst: &Path) -> io::Result<()> {
+    fs::create_dir_all(dst)?;
+    let mut stack: Vec<PathBuf> = vec![src.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        for entry in fs::read_dir(&dir)? {
+            let entry = entry?;
+            let from = entry.path();
+            let rel = from
+                .strip_prefix(src)
+                .map_err(|e| io::Error::new(ErrorKind::Other, e.to_string()))?;
+            let to = dst.join(rel);
+            let ftype = entry.file_type()?;
+            if ftype.is_dir() {
+                fs::create_dir_all(&to)?;
+                stack.push(from);
+            } else if ftype.is_file() {
+                if let Some(parent) = to.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                fs::copy(&from, &to)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn copy_entry(src: &Path, dst: &Path, is_dir: bool) -> io::Result<()> {
+    ensure_parent(dst)?;
+    if is_dir {
+        copy_tree(src, dst)
+    } else {
+        fs::copy(src, dst).map(|_| ())
+    }
+}
+
+#[cfg(unix)]
+fn make_symlink(target: &Path, link: &Path) -> io::Result<()> {
+    ensure_parent(link)?;
+    std::os::unix::fs::symlink(target, link)
+}
+
+#[cfg(not(unix))]
+fn make_symlink(_target: &Path, _link: &Path) -> io::Result<()> {
+    Err(io::Error::new(
+        ErrorKind::Unsupported,
+        "symlink creation is only supported on Unix targets",
+    ))
+}
+
+#[tauri::command]
+pub fn bridge_action(rel: String, action: BridgeAction) -> Result<BridgeActionResult, String> {
+    // Reconcile only makes sense from inside WSL — natively on Windows
+    // both sides are the same filesystem; natively on Linux/mac there's
+    // no Windows host to bridge to.
+    if !is_wsl() {
+        return Err(
+            "bridge actions require running inside WSL with a Windows host on /mnt/c".into(),
+        );
+    }
+
+    let target = share_target_for(&rel).ok_or_else(|| format!("unknown share target: {rel}"))?;
+
+    let wsl_root = wsl_claude_root().ok_or_else(|| "HOME is not set".to_string())?;
+    let win_root =
+        windows_claude_root(Path::new("/mnt/c")).ok_or_else(|| {
+            "no Windows-side .claude/ found under /mnt/c/Users/*".to_string()
+        })?;
+
+    let wsl_path = wsl_root.join(target.rel);
+    let win_path = win_root.join(target.rel);
+
+    let backup = match action {
+        BridgeAction::CopyWindowsToWsl => {
+            if fs::symlink_metadata(&win_path).is_err() {
+                return Err("Windows side is missing — nothing to copy".into());
+            }
+            let bkp = backup_if_exists(&wsl_path).map_err(|e| e.to_string())?;
+            copy_entry(&win_path, &wsl_path, target.is_dir).map_err(|e| e.to_string())?;
+            bkp
+        }
+        BridgeAction::CopyWslToWindows => {
+            if fs::symlink_metadata(&wsl_path).is_err() {
+                return Err("WSL side is missing — nothing to copy".into());
+            }
+            let bkp = backup_if_exists(&win_path).map_err(|e| e.to_string())?;
+            copy_entry(&wsl_path, &win_path, target.is_dir).map_err(|e| e.to_string())?;
+            bkp
+        }
+        BridgeAction::SymlinkWslToWindows => {
+            // The link target must exist — otherwise Claude Code on the
+            // WSL side would error on its next read.
+            if fs::symlink_metadata(&win_path).is_err() {
+                return Err(
+                    "Windows side must exist before linking — copy WSL → Windows first".into(),
+                );
+            }
+            let bkp = backup_if_exists(&wsl_path).map_err(|e| e.to_string())?;
+            make_symlink(&win_path, &wsl_path).map_err(|e| e.to_string())?;
+            bkp
+        }
+    };
+
+    let status = build_target_status(target, Some(&wsl_root), Some(&win_root));
+    Ok(BridgeActionResult {
+        status,
+        backup_path: backup.map(|p| p.display().to_string()),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -394,5 +581,76 @@ mod tests {
         let sb = side_state(Some(&b), false);
         assert_eq!(compare(&sa, &sb), "wsl-only");
         assert_eq!(compare(&sb, &sa), "windows-only");
+    }
+
+    #[test]
+    fn share_target_lookup_round_trip() {
+        for t in SHARE_TARGETS {
+            assert!(share_target_for(t.rel).is_some(), "missing: {}", t.rel);
+        }
+        assert!(share_target_for("does-not-exist.json").is_none());
+    }
+
+    #[test]
+    fn backup_renames_existing_file_and_noops_when_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let present = tmp.path().join("settings.json");
+        fs::write(&present, b"{}").unwrap();
+        let bkp = backup_if_exists(&present)
+            .unwrap()
+            .expect("expected a backup path");
+        assert!(!present.exists(), "original should be renamed away");
+        assert!(bkp.exists());
+        let name = bkp.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(
+            name.starts_with("settings.json.prmptr-backup-"),
+            "unexpected backup name: {name}",
+        );
+
+        let absent = tmp.path().join("nope");
+        assert!(backup_if_exists(&absent).unwrap().is_none());
+    }
+
+    #[test]
+    fn copy_tree_reproduces_nested_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("src");
+        let dst = tmp.path().join("dst");
+        fs::create_dir_all(src.join("inner")).unwrap();
+        fs::write(src.join("top.md"), b"top").unwrap();
+        fs::write(src.join("inner/leaf.md"), b"leaf").unwrap();
+        copy_tree(&src, &dst).unwrap();
+        assert_eq!(fs::read(dst.join("top.md")).unwrap(), b"top");
+        assert_eq!(fs::read(dst.join("inner/leaf.md")).unwrap(), b"leaf");
+    }
+
+    #[test]
+    fn copy_entry_handles_files_and_dirs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src_file = tmp.path().join("a.json");
+        let dst_file = tmp.path().join("nested/a.json");
+        fs::write(&src_file, b"v").unwrap();
+        copy_entry(&src_file, &dst_file, false).unwrap();
+        assert_eq!(fs::read(&dst_file).unwrap(), b"v");
+
+        let src_dir = tmp.path().join("d");
+        let dst_dir = tmp.path().join("e/d");
+        fs::create_dir_all(&src_dir).unwrap();
+        fs::write(src_dir.join("x"), b"x").unwrap();
+        copy_entry(&src_dir, &dst_dir, true).unwrap();
+        assert_eq!(fs::read(dst_dir.join("x")).unwrap(), b"x");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn symlink_round_trip() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("real.json");
+        let link = tmp.path().join("link.json");
+        fs::write(&target, b"hi").unwrap();
+        make_symlink(&target, &link).unwrap();
+        let meta = fs::symlink_metadata(&link).unwrap();
+        assert!(meta.file_type().is_symlink());
+        assert_eq!(fs::read_link(&link).unwrap(), target);
     }
 }

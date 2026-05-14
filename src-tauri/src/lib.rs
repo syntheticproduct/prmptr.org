@@ -26,7 +26,7 @@ mod worktrees;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use bridge::bridge_status;
+use bridge::{bridge_action, bridge_status};
 use claude_sessions::{
     archive_sessions, delete_claude_session, list_claude_sessions, list_claude_sessions_global,
     read_claude_session_tail, unarchive_sessions,
@@ -104,6 +104,7 @@ pub fn run() {
             read_global_settings,
             open_global_settings_window,
             bridge_status,
+            bridge_action,
             text_scale_factor,
             list_project_worktrees,
             delete_project_worktree,
