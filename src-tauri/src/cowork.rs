@@ -592,6 +592,67 @@ fn write_archived_field(path: &Path, archived: bool) -> Result<(), Box<dyn std::
     Ok(())
 }
 
+/// Open a standalone window viewing a single Cowork session. Re-focuses an
+/// existing window if one is already open for the same `session_id` so we
+/// don't pile up duplicates. Window label is `cowork-<sessionId>`; the
+/// `/cowork-viewer` route reads `?id=` and hydrates from the listing.
+#[tauri::command]
+pub fn open_cowork_session_window(
+    app: tauri::AppHandle,
+    session_id: String,
+    title: String,
+) -> Result<(), String> {
+    use tauri::Manager;
+
+    // Cap label length defensively; Tauri's webview labels have practical
+    // limits, and our session IDs are uuids — short enough, but be safe.
+    let safe_id: String = session_id
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+        .take(96)
+        .collect();
+    if safe_id.is_empty() {
+        return Err("invalid session id".into());
+    }
+    let window_label = format!("cowork-{safe_id}");
+
+    if let Some(existing) = app.get_webview_window(&window_label) {
+        existing.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    // Dev: hit Next.js directly (HMR works). Release: load the static export.
+    #[cfg(debug_assertions)]
+    let url = {
+        let full = format!("http://localhost:3000/cowork-viewer?id={safe_id}");
+        #[allow(clippy::expect_used)]
+        let parsed = full.parse().expect("dev URL parse");
+        tauri::WebviewUrl::External(parsed)
+    };
+    #[cfg(not(debug_assertions))]
+    let url = tauri::WebviewUrl::App(
+        format!("cowork-viewer.html?id={safe_id}").into(),
+    );
+
+    // Trim runaway titles; long ones overflow the OS title bar awkwardly.
+    let short_title: String = title.chars().take(120).collect();
+    let window_title = if short_title.is_empty() {
+        "Cowork session · prmptr.org".to_string()
+    } else {
+        format!("{short_title} · prmptr.org")
+    };
+
+    tauri::WebviewWindowBuilder::new(&app, &window_label, url)
+        .title(window_title)
+        .inner_size(900.0, 700.0)
+        .min_inner_size(600.0, 400.0)
+        .resizable(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

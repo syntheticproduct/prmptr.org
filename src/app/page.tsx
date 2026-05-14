@@ -24,7 +24,6 @@ import {
 } from "@/components/FrontmatterModeToggle";
 import { FrontmatterPanel } from "@/components/FrontmatterPanel";
 import { joinFrontmatter, parseFrontmatter } from "@/lib/frontmatter";
-import type { CoworkSummary } from "@/lib/tauri-fs";
 import { formatError } from "@/lib/errors";
 import {
   DEV_DEFAULT_FILE,
@@ -253,40 +252,6 @@ export default function Home() {
       await loadFromPath(path);
     },
     [confirmDiscard, loadFromPath],
-  );
-
-  const handleCoworkSelect = useCallback(
-    (s: CoworkSummary): boolean => {
-      if (!confirmDiscard()) return false;
-      const created = s.createdAt ? new Date(s.createdAt).toLocaleString() : "unknown";
-      const lastActive = s.lastActivityAt
-        ? new Date(s.lastActivityAt).toLocaleString()
-        : "unknown";
-      const meta = [
-        `**Created**: ${created}`,
-        `**Last active**: ${lastActive}`,
-        s.model ? `**Model**: \`${s.model}\`` : null,
-        s.isStarred ? "**★ Starred**" : null,
-        s.isArchived ? "**Archived**" : null,
-        s.cwd ? `**Working folder**: \`${s.cwd}\`` : null,
-        `**Session ID**: \`${s.sessionId}\``,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-
-      const body = `# ${s.title}\n\n${meta}\n\n## Initial prompt\n\n${
-        s.initialMessage ?? "_(none recorded)_"
-      }\n`;
-
-      setText(body);
-      setOpenPath(null);
-      setSavedContent(null);
-      setError(null);
-      setEditorEpoch((n) => n + 1);
-      setActiveTab("pe");
-      return true;
-    },
-    [confirmDiscard],
   );
 
   // HTML5 drag-drop. Tauri's OS-level drag-drop (dragDropEnabled: true) was
@@ -558,7 +523,7 @@ export default function Home() {
         )}
 
         {activeTab === "cowork" && (
-          <CoworkSessions onSelect={handleCoworkSelect} />
+          <CoworkSessions />
         )}
 
         {activeTab === "code" && <ClaudeCodeTab />}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   listCoworkSessions,
   setCoworkArchived,
@@ -41,13 +42,7 @@ function lastPathSegment(p: string | null, n = 2): string {
   return p.split(/[\\/]/).filter(Boolean).slice(-n).join("/");
 }
 
-type Props = {
-  // Returns true if the session was loaded; false if the caller bailed
-  // (e.g. the user cancelled the "discard unsaved changes?" prompt).
-  onSelect: (s: CoworkSummary) => boolean;
-};
-
-export function CoworkSessions({ onSelect }: Props) {
+export function CoworkSessions() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -230,14 +225,45 @@ export function CoworkSessions({ onSelect }: Props) {
   const sortArrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
+  const openInNewWindow = useCallback((s: CoworkSummary) => {
+    invoke("open_cowork_session_window", {
+      sessionId: s.sessionId,
+      title: s.title,
+    }).catch((e) => {
+      window.alert(`Failed to open session window: ${formatError(e)}`);
+    });
+  }, []);
+
+  const toggleRowArchived = useCallback(
+    async (s: CoworkSummary) => {
+      const action = s.isArchived ? "unarchive" : "archive";
+      const busyKey = `${action}-${s.sessionId}`;
+      setBusy(busyKey);
+      try {
+        const result = await setCoworkArchived([s.sourcePath], !s.isArchived);
+        refresh();
+        if (result.failed.length > 0) {
+          window.alert(
+            `Failed to ${action}: ${result.failed[0]?.reason ?? "unknown error"}`,
+          );
+        }
+      } catch (e) {
+        window.alert(`Failed to ${action}: ${formatError(e)}`);
+      } finally {
+        setBusy(null);
+      }
+    },
+    [refresh],
+  );
+
   const renderRow = (s: CoworkSummary) => {
     const isSel = selected.has(s.sessionId);
+    const rowBusyKey = `${s.isArchived ? "unarchive" : "archive"}-${s.sessionId}`;
+    const rowBusy = busy === rowBusyKey;
     return (
       <tr
         key={s.sessionId}
-        onClick={() => {
-          onSelect(s);
-        }}
+        onClick={() => openInNewWindow(s)}
         className={`cursor-pointer border-b border-[var(--border)] transition ${
           isSel ? "bg-[var(--accent-tint)]" : "hover:bg-[var(--surface-2)]"
         } ${s.isArchived ? "opacity-60" : ""}`}
@@ -272,8 +298,17 @@ export function CoworkSessions({ onSelect }: Props) {
         >
           {lastPathSegment(s.cwd, 2)}
         </td>
-        <td className="px-2 py-1.5 text-center text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
-          {s.isArchived ? "archived" : ""}
+        <td
+          className="px-2 py-1.5 text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            disabled={rowBusy}
+            onClick={() => toggleRowArchived(s)}
+            className="rounded-md bg-[var(--surface-2)] px-2 py-0.5 text-[10px] uppercase tracking-wider text-[var(--text-dim)] transition hover:bg-[var(--surface-3)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {rowBusy ? "…" : s.isArchived ? "Unarchive" : "Archive"}
+          </button>
         </td>
       </tr>
     );
@@ -428,7 +463,7 @@ export function CoworkSessions({ onSelect }: Props) {
                     Model{sortArrow("model")}
                   </th>
                   <th className="w-56 px-2 py-2">Folder</th>
-                  <th className="w-20 px-2 py-2 text-center">State</th>
+                  <th className="w-24 px-2 py-2 text-center"></th>
                 </tr>
               </thead>
               <tbody>

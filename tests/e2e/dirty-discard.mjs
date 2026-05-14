@@ -113,18 +113,8 @@ await test("File → Open prompts to discard when dirty", async () => {
   assert.match(confirms[0], /unsaved/i);
 });
 
-// ── 2. Cowork session row click ───────────────────────────────────────
-await test("Cowork session click prompts to discard when dirty", async () => {
-  await makeDirty();
-  // Switch to the Cowork root tab
-  await page.locator('[role="tab"]', { hasText: /Claude Cowork/ }).click();
-  await page.waitForTimeout(400);
-  await page.evaluate(() => (window.__confirms = []));
-  await page.locator("tbody tr", { hasText: "Session A" }).first().click();
-  await page.waitForTimeout(400);
-  const confirms = await page.evaluate(() => window.__confirms);
-  assert.ok(confirms.length >= 1, `expected confirm() before cowork load, got ${confirms.length}`);
-});
+// Cowork session clicks no longer touch the editor — they open the session
+// in a new Tauri window — so there's nothing to discard. Test removed.
 
 // ── 3. FolderTreePane file click ──────────────────────────────────────
 await test("FolderTreePane file click prompts to discard when dirty", async () => {

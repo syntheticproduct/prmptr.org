@@ -109,6 +109,7 @@ await ctx.addInitScript(() => {
       return { updated: args.paths.length, failed: [] };
     },
     "plugin:dialog|open": () => FOLDER_ROOT,
+    open_cowork_session_window: () => null,
   };
   window.__TAURI_INTERNALS__ = {
     invoke(cmd, args) {
@@ -191,32 +192,34 @@ await test("'show archived' toggles archived session visibility", async () => {
   assert.ok(counter?.startsWith("6/6 shown"), `expected 6/6 with archived, got: ${counter}`);
 });
 
-await test("clicking a row jumps to Prompt Engineering tab and loads its summary", async () => {
+await test("clicking a row invokes open_cowork_session_window with the session id", async () => {
+  await page.evaluate(() => (window.__calls = []));
   await page.locator("tbody tr", { hasText: "Active recent" }).first().click();
   await page.waitForTimeout(400);
 
-  // Cowork panel should be hidden because we switched to the PE tab.
-  assert.equal(
-    await page.locator("h2", { hasText: /Cowork sessions/ }).count(),
-    0,
-    "Cowork panel should be hidden after PE switch",
+  const calls = await page.evaluate(() => window.__calls);
+  const openCall = calls.find(
+    (c) => c[0] === "invoke" && c[1] === "open_cowork_session_window",
   );
-  // Active tab should be Prompt Engineering.
-  const peTab = page.locator('[role="tab"]', { hasText: /Prompt Engineering/ });
-  await assert.equal(await peTab.getAttribute("aria-selected"), "true");
-  // Editor should now show the cowork summary template — "# Active recent"
-  const prose = await page.locator(".ProseMirror").first().innerHTML();
-  assert.ok(
-    prose.includes("Active recent"),
-    `editor body missing session title; got: ${prose.slice(0, 300)}`,
-  );
-  assert.ok(
-    prose.includes("Initial prompt"),
-    `editor body missing 'Initial prompt' section`,
+  assert.ok(openCall, `expected open_cowork_session_window call; saw ${calls.map((c) => c[1] ?? c[0]).join(", ")}`);
+  assert.equal(openCall[2].sessionId, "local_recent1");
+  assert.equal(openCall[2].title, "Active recent");
+  // Cowork panel should still be visible — clicking a row no longer
+  // switches tabs or modifies the editor.
+  await assert.ok(
+    await page.locator("h2", { hasText: /Cowork sessions/ }).isVisible(),
+    "Cowork panel should remain visible after row click",
   );
 });
 
 // ─── Folder pane ──────────────────────────────────────────────────────────
+// The Cowork tab hides the ViewModeToggle (it's only visible on PE/ME),
+// so jump back to the PE tab before exercising the folder pane.
+await test("return to Prompt Engineering tab for folder tests", async () => {
+  await page.locator('[role="tab"]', { hasText: /Prompt Engineering/ }).click();
+  await page.waitForTimeout(150);
+});
+
 await test("switch to Folder view, then open root via pane button", async () => {
   await topHeader.locator("button", { hasText: /view ▾$/i }).click();
   await page.locator('[role="menuitemradio"]', { hasText: "Folder view" }).click();

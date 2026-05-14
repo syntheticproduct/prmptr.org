@@ -30,7 +30,7 @@ use claude_sessions::{
     archive_sessions, list_claude_sessions, read_claude_session_tail, unarchive_sessions,
 };
 use clipboard::clipboard_image_to_path;
-use cowork::{list_cowork_sessions, set_cowork_archived};
+use cowork::{list_cowork_sessions, open_cowork_session_window, set_cowork_archived};
 use file::{list_dir, read_prompt_file, write_prompt_file};
 use global_settings::{open_global_settings_window, read_global_settings};
 use text_scale::text_scale_factor;
@@ -87,6 +87,7 @@ pub fn run() {
             clipboard_image_to_path,
             list_cowork_sessions,
             set_cowork_archived,
+            open_cowork_session_window,
             list_claude_sessions,
             read_claude_session_tail,
             archive_sessions,
