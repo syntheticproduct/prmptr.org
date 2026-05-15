@@ -38,10 +38,10 @@ const VIEW_MODE_KEY = "prmptr.viewmode";
 type RootTab = "pe" | "md" | "cowork" | "code";
 
 const ROOT_TABS: { value: RootTab; label: string }[] = [
-  { value: "pe", label: "Prompt Engineering" },
-  { value: "md", label: "Markdown Editing" },
   { value: "cowork", label: "Claude Desktop" },
   { value: "code", label: "Claude Code" },
+  { value: "md", label: "Markdown Editing" },
+  { value: "pe", label: "Prompt Engineering" },
 ];
 
 function loadFrontmatterMode(): FrontmatterMode {
@@ -52,10 +52,10 @@ function loadFrontmatterMode(): FrontmatterMode {
 }
 
 function loadActiveTab(): RootTab {
-  if (typeof window === "undefined") return "pe";
+  if (typeof window === "undefined") return "cowork";
   const v = window.localStorage.getItem(ACTIVE_TAB_KEY);
   if (v === "pe" || v === "md" || v === "cowork" || v === "code") return v;
-  return "pe";
+  return "cowork";
 }
 
 function isViewMode(v: unknown): v is ViewMode {
@@ -125,7 +125,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [toolStatus, setToolStatus] = useState<ToolStatus>({ kind: "idle" });
-  const [activeTab, setActiveTab] = useState<RootTab>("pe");
+  const [activeTab, setActiveTab] = useState<RootTab>("cowork");
   const [viewMode, setViewMode] = useState<ViewMode>(
     DEV_DEFAULT_VIEW_MODE ?? "single",
   );
