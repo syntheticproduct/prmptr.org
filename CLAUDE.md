@@ -116,17 +116,29 @@ npm run tauri build -- --target x86_64-pc-windows-gnu --bundles nsis
 
 Artifacts land in `src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis/*.exe`. "Install locally" = launch that `.exe` from Windows (`cmd.exe /c start ...` from WSL works). No Rust on Windows; no MSVC build path. WSL has `x86_64-pc-windows-gnu` target installed and `/usr/bin/x86_64-w64-mingw32-gcc` + `/usr/bin/makensis`.
 
-### Always build + install when done
+### Always build + silent install + launch when done
 
-After completing any task in this repo, build the Windows installer and launch it as part of "done" — Camille shouldn't have to ask each time. He verifies features by clicking through the actual installed app, not by reading diffs.
+After completing any task in this repo, run the full **build → silent install → launch** loop on Windows as part of "done" — Camille shouldn't have to ask each time. He verifies features by clicking through the installed app, not by reading diffs, and "build only" leaves the install + launch on his plate.
 
-**How:**
-1. Copy icons first if working in a fresh worktree (per the icons rule below — `cargo build` fails ~5 min in without them).
-2. Build: `npm run tauri build -- --target x86_64-pc-windows-gnu --bundles nsis`.
-3. Launch from Windows: `cmd.exe /c start <path-to-installer>` after the bundle lands.
-4. Report the artifact path in the wrap-up message.
+**How (all three steps, every time):**
 
-**Skip the build when:** the turn made no code change (chat-only, planning, research), Camille explicitly says "don't build," or the work is WIP/experimental that won't actually run yet. When in doubt, build.
+1. **Build** — `npm run tauri build -- --target x86_64-pc-windows-gnu --bundles nsis`. Copy icons first in fresh worktrees (rule further down).
+
+2. **Silent install** — copy the artifact to a Windows-side dir first (a `cmd.exe` invocation from a `\\wsl.localhost\...` cwd rejects with "UNC paths not supported"), then:
+   ```
+   cp src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis/prmptr.org_<ver>_x64-setup.exe /mnt/c/Users/camil/Downloads/
+   powershell.exe -NoProfile -Command "Start-Process -Wait -PassThru -FilePath 'C:\Users\camil\Downloads\prmptr.org_<ver>_x64-setup.exe' -ArgumentList '/S' -WorkingDirectory 'C:\Users\camil\Downloads'"
+   ```
+   `/S` is NSIS silent mode. Don't use `cmd.exe /c start /wait ... /S` from a WSL cwd — surfaces a "Windows cannot find '\\\\'" dialog to Camille.
+
+3. **Launch** — Tauri NSIS currentUser installs land at `C:\Users\camil\AppData\Local\prmptr.org\prmptr.exe` (no `\Programs\` subfolder; that's a different installer convention):
+   ```
+   powershell.exe -NoProfile -Command "Start-Process -FilePath 'C:\Users\camil\AppData\Local\prmptr.org\prmptr.exe' -WorkingDirectory 'C:\Users\camil\AppData\Local\prmptr.org'"
+   ```
+
+**Skip the loop when:** the turn made no code change (chat-only, planning, research), Camille explicitly says "don't build," or the work is WIP/experimental that won't actually run yet. When in doubt, run it.
+
+Report the installer path AND launched PID in the wrap-up so Camille knows which build is in front of him.
 
 ### Trunk-based discipline across worktrees
 
