@@ -167,8 +167,8 @@ await test("Tools → Global Settings invokes open_global_settings_window", asyn
   );
 });
 
-await test("Claude Cowork root tab shows inline sessions panel", async () => {
-  await page.locator('[role="tab"]', { hasText: /Claude Cowork/ }).click();
+await test("Claude Desktop root tab shows inline sessions panel", async () => {
+  await page.locator('[role="tab"]', { hasText: /Claude Desktop/ }).click();
   await page.waitForTimeout(300);
   await assert.ok(
     await page.locator("h2", { hasText: /Cowork sessions/ }).isVisible(),

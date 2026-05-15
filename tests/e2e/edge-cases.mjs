@@ -83,7 +83,7 @@ await test("setup: single view, open Cowork tab", async () => {
   await topHeader.locator("button", { hasText: /view ▾$/i }).click();
   await page.locator('[role="menuitemradio"]', { hasText: "Single view" }).click();
   await page.waitForTimeout(100);
-  await page.locator('[role="tab"]', { hasText: /Claude Cowork/ }).click();
+  await page.locator('[role="tab"]', { hasText: /Claude Desktop/ }).click();
   await page.waitForTimeout(400);
   await assert.ok(await page.locator("h2", { hasText: /Cowork sessions/ }).isVisible());
 });

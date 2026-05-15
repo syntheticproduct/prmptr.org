@@ -40,7 +40,7 @@ type RootTab = "pe" | "md" | "cowork" | "code";
 const ROOT_TABS: { value: RootTab; label: string }[] = [
   { value: "pe", label: "Prompt Engineering" },
   { value: "md", label: "Markdown Editing" },
-  { value: "cowork", label: "Claude Cowork" },
+  { value: "cowork", label: "Claude Desktop" },
   { value: "code", label: "Claude Code" },
 ];
 

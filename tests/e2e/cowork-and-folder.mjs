@@ -147,7 +147,7 @@ await test("setup: switch to Single view", async () => {
 
 // ─── Cowork tab ───────────────────────────────────────────────────────────
 const openCowork = async () => {
-  await page.locator('[role="tab"]', { hasText: /Claude Cowork/ }).click();
+  await page.locator('[role="tab"]', { hasText: /Claude Desktop/ }).click();
   await page.waitForTimeout(400);
 };
 
