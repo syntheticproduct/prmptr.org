@@ -116,6 +116,18 @@ npm run tauri build -- --target x86_64-pc-windows-gnu --bundles nsis
 
 Artifacts land in `src-tauri/target/x86_64-pc-windows-gnu/release/bundle/nsis/*.exe`. "Install locally" = launch that `.exe` from Windows (`cmd.exe /c start ...` from WSL works). No Rust on Windows; no MSVC build path. WSL has `x86_64-pc-windows-gnu` target installed and `/usr/bin/x86_64-w64-mingw32-gcc` + `/usr/bin/makensis`.
 
+### Always build + install when done
+
+After completing any task in this repo, build the Windows installer and launch it as part of "done" — Camille shouldn't have to ask each time. He verifies features by clicking through the actual installed app, not by reading diffs.
+
+**How:**
+1. Copy icons first if working in a fresh worktree (per the icons rule below — `cargo build` fails ~5 min in without them).
+2. Build: `npm run tauri build -- --target x86_64-pc-windows-gnu --bundles nsis`.
+3. Launch from Windows: `cmd.exe /c start <path-to-installer>` after the bundle lands.
+4. Report the artifact path in the wrap-up message.
+
+**Skip the build when:** the turn made no code change (chat-only, planning, research), Camille explicitly says "don't build," or the work is WIP/experimental that won't actually run yet. When in doubt, build.
+
 ### Trunk-based discipline across worktrees
 
 `main` on origin is the integration point. The four numbered worktrees each sit on their own branch (`worktree-1`–`worktree-4`) — those branches exist as ephemeral perches to satisfy git's "one worktree per branch" rule, not as meaningful divergent lines of work. After every push cycle a worktree branch is equal to main again.
