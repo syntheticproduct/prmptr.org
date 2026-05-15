@@ -13,7 +13,7 @@ import {
 import { MilkdownEditor } from "@/components/MilkdownEditor";
 import { FileMenu } from "@/components/FileMenu";
 import { ToolsMenu } from "@/components/ToolsMenu";
-import { CoworkSessions } from "@/components/CoworkSessions";
+import { ClaudeDesktopTab } from "@/components/ClaudeDesktopTab";
 import { ClaudeCodeTab } from "@/components/ClaudeCodeTab";
 import { AnalysisPane } from "@/components/AnalysisPane";
 import { ViewModeToggle, type ViewMode } from "@/components/ViewModeToggle";
@@ -522,9 +522,7 @@ export default function Home() {
           </>
         )}
 
-        {activeTab === "cowork" && (
-          <CoworkSessions />
-        )}
+        {activeTab === "cowork" && <ClaudeDesktopTab />}
 
         {activeTab === "code" && <ClaudeCodeTab />}
       </div>
