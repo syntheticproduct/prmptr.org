@@ -49,6 +49,6 @@
     "playwright": "^1.59.1",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "wrangler": "^4.90.0"
+    "wrangler": "^4.90.1"
   }
 }
