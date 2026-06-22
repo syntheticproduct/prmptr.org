@@ -37,7 +37,7 @@ sha2 = "0.10"
 tempfile = "3"
 
 [target.'cfg(windows)'.dependencies]
-winreg = "0.55"
+winreg = "0.56"
 
 # Release profile tuned for desktop distribution: small binary, no debug
 # unwind tables, full link-time optimization. Trades build time for size and
