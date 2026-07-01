@@ -85,7 +85,7 @@ jobs:
 
       - name: Build & bundle
         id: tauri
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # When code signing lands these will be filled in. Until then the
